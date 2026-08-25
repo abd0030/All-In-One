@@ -349,8 +349,8 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
-      {/* ── 1. IMMERSIVE STICKY-SCROLL HERO SECTION (50 FRAMES 3D STORY SEQUENCE) ── */}
-      <section ref={heroRef} className="relative h-[350vh] bg-slate-950 text-white">
+      {/* ── 1. IMMERSIVE STICKY-SCROLL HERO SECTION (212 FRAMES LIGHT/DARK 3D STORY SEQUENCE) ── */}
+      <section ref={heroRef} className="relative h-[400vh] bg-slate-950 text-white">
         
         {/* Sticky Fullscreen Canvas Viewport */}
         <div className="sticky top-0 h-screen h-[100dvh] w-full flex items-center justify-center overflow-hidden">
