@@ -236,7 +236,8 @@ const HomePage: React.FC = () => {
     const handleScroll = () => {
       if (!heroRef.current) return;
       const rect = heroRef.current.getBoundingClientRect();
-      const scrollableDist = heroRef.current.scrollHeight - window.innerHeight;
+      const clientHeight = window.innerHeight || document.documentElement.clientHeight;
+      const scrollableDist = heroRef.current.scrollHeight - clientHeight;
       if (scrollableDist <= 0) return;
 
       const progress = Math.min(Math.max(-rect.top / scrollableDist, 0), 1);
@@ -252,8 +253,17 @@ const HomePage: React.FC = () => {
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('touchmove', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+    window.addEventListener('orientationchange', handleScroll, { passive: true });
     handleScroll();
-    return () => window.removeEventListener('scroll', handleScroll);
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchmove', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+      window.removeEventListener('orientationchange', handleScroll);
+    };
   }, []);
 
   useEffect(() => {
@@ -343,7 +353,7 @@ const HomePage: React.FC = () => {
       <section ref={heroRef} className="relative h-[350vh] bg-slate-950 text-white">
         
         {/* Sticky Fullscreen Canvas Viewport */}
-        <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
+        <div className="sticky top-0 h-screen h-[100dvh] w-full flex items-center justify-center overflow-hidden">
           
           {/* Background Canvas Frame Sequence */}
           <ScrollHeroCanvas progress={scrollProgress} />

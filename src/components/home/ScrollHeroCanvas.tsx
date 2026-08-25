@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, RotateCcw, Sparkles } from 'lucide-react';
+import { Play, Pause, Sparkles } from 'lucide-react';
 
 const TOTAL_FRAMES = 50;
 
@@ -14,35 +14,54 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
+  const loadedMapRef = useRef<boolean[]>(new Array(TOTAL_FRAMES).fill(false));
   const currentFrameRef = useRef<number>(0);
   const targetFrameRef = useRef<number>(0);
   const animFrameIdRef = useRef<number | null>(null);
   const autoPlayTimerRef = useRef<number | null>(null);
+  const lastDrawnFloatRef = useRef<number>(-1);
 
   const [loadedCount, setLoadedCount] = useState<number>(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
   const [activeFrameDisplay, setActiveFrameDisplay] = useState<number>(1);
 
-  // 1. Preload all 50 frames
+  // 1. High-reliability preloading for both Mobile & Desktop
   useEffect(() => {
     const loadedImages: HTMLImageElement[] = [];
-    let count = 0;
+    const loadedMap = new Array(TOTAL_FRAMES).fill(false);
 
     for (let i = 1; i <= TOTAL_FRAMES; i++) {
       const img = new Image();
       const frameNum = String(i).padStart(3, '0');
       img.src = `/frames/ezgif-frame-${frameNum}.jpg`;
-      img.onload = () => {
-        count++;
-        setLoadedCount(count);
+      img.loading = 'eager';
+
+      const markLoaded = () => {
+        loadedMap[i - 1] = true;
+        loadedMapRef.current = loadedMap;
+        setLoadedCount(prev => prev + 1);
         if (i === 1 && canvasRef.current) {
-          renderFrame(0);
+          renderSubFrame(0);
         }
       };
+
+      img.onload = () => {
+        if ('decode' in img && typeof img.decode === 'function') {
+          img.decode().then(markLoaded).catch(markLoaded);
+        } else {
+          markLoaded();
+        }
+      };
+      img.onerror = () => {
+        // Fallback mark loaded on error to prevent infinite waiting
+        loadedMap[i - 1] = false;
+      };
+
       loadedImages.push(img);
     }
 
     imagesRef.current = loadedImages;
+    loadedMapRef.current = loadedMap;
 
     return () => {
       imagesRef.current = [];
@@ -50,31 +69,33 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     };
   }, []);
 
-  // 2. Render frame to canvas with high-DPI scaling and object-fit cover
-  const renderFrame = useCallback((index: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Helper: Find nearest loaded frame index if requested frame is still buffering on mobile
+  const getNearestLoadedIndex = useCallback((targetIdx: number): number => {
+    const map = loadedMapRef.current;
+    if (map[targetIdx]) return targetIdx;
 
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
+    for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
+      if (targetIdx - offset >= 0 && map[targetIdx - offset]) {
+        return targetIdx - offset;
+      }
+      if (targetIdx + offset < TOTAL_FRAMES && map[targetIdx + offset]) {
+        return targetIdx + offset;
+      }
+    }
+    return 0;
+  }, []);
 
-    const img = imagesRef.current[index];
+  // Helper: Draw single image with aspect ratio cover math
+  const drawImageCover = (
+    ctx: CanvasRenderingContext2D,
+    img: HTMLImageElement,
+    width: number,
+    height: number,
+    alpha: number = 1
+  ) => {
     if (!img || !img.complete || img.naturalWidth === 0) return;
 
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-
-    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-    }
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, height);
-
-    // Calculate aspect ratio cover math
+    ctx.globalAlpha = alpha;
     const imgRatio = img.naturalWidth / img.naturalHeight;
     const canvasRatio = width / height;
 
@@ -92,15 +113,59 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     }
 
     ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-    ctx.restore();
-  }, []);
+  };
 
-  // 3. Auto-play functionality (smooth preview mode)
+  // 2. Liquid-Smooth Dual-Frame Cross-Fade Render (Sub-frame Alpha Blending)
+  const renderSubFrame = useCallback((frameFloat: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+
+    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+    }
+
+    const clampedFloat = Math.max(0, Math.min(frameFloat, TOTAL_FRAMES - 1));
+    const baseIndex = Math.floor(clampedFloat);
+    const nextIndex = Math.min(baseIndex + 1, TOTAL_FRAMES - 1);
+    const blendFactor = clampedFloat - baseIndex; // Sub-frame fraction (0.0 to 1.0)
+
+    const safeBaseIdx = getNearestLoadedIndex(baseIndex);
+    const safeNextIdx = getNearestLoadedIndex(nextIndex);
+
+    const baseImg = imagesRef.current[safeBaseIdx];
+    const nextImg = imagesRef.current[safeNextIdx];
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    // Draw primary base frame
+    if (baseImg) {
+      drawImageCover(ctx, baseImg, width, height, 1);
+    }
+
+    // Blend next frame with sub-frame alpha for liquid-smooth motion interpolation
+    if (blendFactor > 0.01 && safeBaseIdx !== safeNextIdx && nextImg) {
+      drawImageCover(ctx, nextImg, width, height, blendFactor);
+    }
+
+    ctx.restore();
+  }, [getNearestLoadedIndex]);
+
+  // 3. Auto-play loop (slower, cinematic)
   useEffect(() => {
     if (isAutoPlaying) {
       autoPlayTimerRef.current = window.setInterval(() => {
         targetFrameRef.current = (targetFrameRef.current + 1) % TOTAL_FRAMES;
-      }, 70); // Smooth, slower pace
+      }, 65);
     } else {
       if (autoPlayTimerRef.current) {
         clearInterval(autoPlayTimerRef.current);
@@ -112,41 +177,37 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     };
   }, [isAutoPlaying]);
 
-  // 4. External or Scroll Progress Sync
+  // 4. External scroll progress sync
   useEffect(() => {
     if (isAutoPlaying) return;
 
     if (externalProgress !== undefined) {
-      const targetIndex = Math.min(
-        Math.max(Math.floor(externalProgress * (TOTAL_FRAMES - 1)), 0),
+      const targetVal = Math.min(
+        Math.max(externalProgress * (TOTAL_FRAMES - 1), 0),
         TOTAL_FRAMES - 1
       );
-      targetFrameRef.current = targetIndex;
+      targetFrameRef.current = targetVal;
     }
   }, [externalProgress, isAutoPlaying]);
 
-  // 5. Physics-based Smooth Lerp Render Loop (slower, gentle interpolation)
+  // 5. Physics-based Smooth Lerp Animation Loop with sub-frame precision
   useEffect(() => {
-    let lastDrawn = -1;
-
     const loop = () => {
       const diff = targetFrameRef.current - currentFrameRef.current;
-      if (Math.abs(diff) > 0.005) {
-        currentFrameRef.current += diff * 0.08; // Ultra smooth and relaxed damping
+      if (Math.abs(diff) > 0.002) {
+        currentFrameRef.current += diff * 0.075; // Ultra smooth damping
       } else {
         currentFrameRef.current = targetFrameRef.current;
       }
 
-      const frameToDraw = Math.min(
-        Math.max(Math.round(currentFrameRef.current), 0),
-        TOTAL_FRAMES - 1
-      );
+      const curVal = currentFrameRef.current;
+      if (Math.abs(curVal - lastDrawnFloatRef.current) > 0.005) {
+        renderSubFrame(curVal);
+        lastDrawnFloatRef.current = curVal;
 
-      if (frameToDraw !== lastDrawn) {
-        renderFrame(frameToDraw);
-        lastDrawn = frameToDraw;
-        setActiveFrameDisplay(frameToDraw + 1);
-        onFrameChange?.(frameToDraw + 1, frameToDraw / (TOTAL_FRAMES - 1));
+        const displayFrame = Math.min(Math.max(Math.round(curVal) + 1, 1), TOTAL_FRAMES);
+        setActiveFrameDisplay(displayFrame);
+        onFrameChange?.(displayFrame, curVal / (TOTAL_FRAMES - 1));
       }
 
       animFrameIdRef.current = requestAnimationFrame(loop);
@@ -157,7 +218,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     return () => {
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     };
-  }, [renderFrame, onFrameChange]);
+  }, [renderSubFrame, onFrameChange]);
 
   return (
     <div className="absolute inset-0 w-full h-full">
