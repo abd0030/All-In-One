@@ -20,11 +20,7 @@ import {
   Home as HomeIcon,
   Tv,
   Briefcase,
-  Layers,
-  Play,
-  Pause,
-  Volume2,
-  VolumeX
+  Layers
 } from 'lucide-react';
 import { CITIES } from '../utils/constants';
 import { listingsService } from '../services/listingsService';
@@ -36,6 +32,7 @@ import { Skeleton } from '../components/ui';
 import { userHasAnyRole } from '../utils/helpers';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
+import { ScrollHeroCanvas } from '../components/home/ScrollHeroCanvas';
 
 const getCategoryMeta = (name: string, index: number) => {
   const n = name.toLowerCase();
@@ -230,11 +227,6 @@ const HomePage: React.FC = () => {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingListings, setLoadingListings] = useState<Record<string, boolean>>({});
 
-  // 3D Hero Video Controls State
-  const videoRef = React.useRef<HTMLVideoElement>(null);
-  const [isMuted, setIsMuted] = useState(true);
-  const [isPlaying, setIsPlaying] = useState(true);
-
   useEffect(() => {
     if (!loading && user) {
       if (userHasAnyRole(user, ['super_admin'])) {
@@ -318,45 +310,17 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
-      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH HIGH-CLARITY 3D VIDEO BACKGROUND ── */}
+      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH SCROLL-ANIMATED 3D CANVAS BACKGROUND ── */}
       <section className="relative overflow-hidden pt-14 pb-20 lg:pt-18 lg:pb-28 bg-slate-950 border-b border-slate-800/80 text-white">
         
-        {/* ── HIGH-CLARITY CINEMATIC 3D BACKGROUND VIDEO ── */}
+        {/* ── SCROLL-ANIMATED 3D CANVAS BACKGROUND ── */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
-          <video
-            ref={videoRef}
-            autoPlay
-            loop
-            muted={isMuted}
-            playsInline
-            className="w-full h-full object-cover opacity-95 dark:opacity-90 transition-opacity duration-300"
-          >
-            <source src="/hero-promo.mp4" type="video/mp4" />
-            <source src="/All%20in%20One%20video.mp4" type="video/mp4" />
-          </video>
+          <ScrollHeroCanvas />
           
-          {/* Subtle Dynamic Theme Vignette (Crystal-clear video while keeping text readable) */}
+          {/* Subtle Dynamic Theme Vignette (Crystal-clear frames while keeping text readable) */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 dark:from-slate-950/50 dark:via-transparent dark:to-slate-950/90" />
           {/* Soft Radial Ambient Contrast Behind Text */}
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(15,23,42,0.45)_0%,rgba(15,23,42,0.1)_70%,rgba(15,23,42,0.7)_100%)]" />
-        </div>
-
-        {/* Background Sound / Play Control (Top Right of Hero) */}
-        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (videoRef.current) {
-                videoRef.current.muted = !isMuted;
-                setIsMuted(!isMuted);
-              }
-            }}
-            className="px-3.5 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 backdrop-blur-xl border border-white/25 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
-            title={isMuted ? 'Unmute Video' : 'Mute Video'}
-          >
-            {isMuted ? <VolumeX size={14} className="text-slate-300" /> : <Volume2 size={14} className="text-amber-400" />}
-            <span className="hidden sm:inline">{isMuted ? 'Sound Off' : 'Sound On'}</span>
-          </button>
         </div>
 
         <div className="relative max-w-6xl mx-auto px-4 sm:px-6 text-center z-10">
