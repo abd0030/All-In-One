@@ -20,7 +20,11 @@ import {
   Home as HomeIcon,
   Tv,
   Briefcase,
-  Layers
+  Layers,
+  Play,
+  Pause,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { CITIES } from '../utils/constants';
 import { listingsService } from '../services/listingsService';
@@ -226,6 +230,11 @@ const HomePage: React.FC = () => {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingListings, setLoadingListings] = useState<Record<string, boolean>>({});
 
+  // 3D Hero Video Controls State
+  const videoRef = React.useRef<HTMLVideoElement>(null);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isPlaying, setIsPlaying] = useState(true);
+
   useEffect(() => {
     if (!loading && user) {
       if (userHasAnyRole(user, ['super_admin'])) {
@@ -309,8 +318,8 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
-      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION (LIGHT & DARK ADAPTIVE) ── */}
-      <section className="relative overflow-hidden pt-12 pb-20 lg:pt-16 lg:pb-28 bg-gradient-to-b from-blue-50/70 via-indigo-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/60 dark:border-slate-800/80">
+      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH 3D CINEMATIC SHOWCASE ── */}
+      <section className="relative overflow-hidden pt-10 pb-16 lg:pt-14 lg:pb-24 bg-gradient-to-b from-blue-50/70 via-indigo-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/60 dark:border-slate-800/80">
         
         {/* Luminous Ambient Glows for Light & Dark Mode */}
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[360px] bg-blue-500/10 dark:bg-primary-600/25 blur-[120px] rounded-full pointer-events-none" />
@@ -346,7 +355,7 @@ const HomePage: React.FC = () => {
             {/* Glassmorphic Search Bar */}
             <form
               onSubmit={handleSearch}
-              className="p-2 sm:p-2.5 bg-white/90 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/60 rounded-3xl shadow-xl shadow-slate-200/60 dark:shadow-2xl max-w-3xl mx-auto flex flex-col sm:flex-row gap-2"
+              className="p-2 sm:p-2.5 bg-white/90 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/60 rounded-3xl shadow-xl shadow-slate-200/60 dark:shadow-2xl max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-8"
             >
               <div className="flex-1 relative flex items-center">
                 <Search size={20} className="absolute left-4 text-slate-400" />
@@ -385,8 +394,82 @@ const HomePage: React.FC = () => {
               </button>
             </form>
 
+            {/* ── 3D CINEMATIC SHOWCASE VIDEO CARD ── */}
+            <div className="relative max-w-4xl mx-auto rounded-3xl p-1.5 sm:p-2 bg-gradient-to-br from-blue-500/30 via-indigo-500/20 to-amber-500/30 shadow-2xl shadow-primary-600/15 dark:shadow-primary-950/60 backdrop-blur-2xl border border-white/40 dark:border-white/10 group mb-6">
+              <div className="relative rounded-[22px] overflow-hidden bg-slate-950 aspect-video sm:aspect-[21/9] flex items-center justify-center">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  loop
+                  muted={isMuted}
+                  playsInline
+                  className="w-full h-full object-cover"
+                >
+                  <source src="/hero-promo.mp4" type="video/mp4" />
+                  <source src="/All%20in%20One%20video.mp4" type="video/mp4" />
+                </video>
+
+                {/* Subtle Gradient Overlays */}
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-slate-950/30 pointer-events-none" />
+
+                {/* Top Badge on Video */}
+                <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/15 text-[11px] font-bold text-white shadow-lg pointer-events-none">
+                  <Sparkles size={13} className="text-amber-400 animate-pulse" />
+                  <span>3D Marketplace Showcase</span>
+                </div>
+
+                {/* Video Controls Bar (Bottom Right) */}
+                <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-2 z-10">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (videoRef.current) {
+                        if (isPlaying) {
+                          videoRef.current.pause();
+                          setIsPlaying(false);
+                        } else {
+                          videoRef.current.play();
+                          setIsPlaying(true);
+                        }
+                      }
+                    }}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-800 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-lg"
+                    title={isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {isPlaying ? <Pause size={14} /> : <Play size={14} />}
+                    <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (videoRef.current) {
+                        videoRef.current.muted = !isMuted;
+                        setIsMuted(!isMuted);
+                      }
+                    }}
+                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-800 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-lg"
+                    title={isMuted ? 'Unmute' : 'Mute'}
+                  >
+                    {isMuted ? <VolumeX size={14} className="text-slate-300" /> : <Volume2 size={14} className="text-amber-400" />}
+                    <span className="hidden sm:inline">{isMuted ? 'Mute' : 'Sound On'}</span>
+                  </button>
+                </div>
+
+                {/* Bottom Left Slogan */}
+                <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 text-left pointer-events-none hidden sm:block">
+                  <p className="text-xs font-bold text-white/90 drop-shadow-md">
+                    Everything You Need • All In One Marketplace
+                  </p>
+                  <p className="text-[10px] text-white/70">
+                    Vehicles • Mobiles • Real Estate • Electronics • Fashion • Furniture
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Quick Category Suggestion Pills */}
-            <div className="flex flex-wrap justify-center gap-2 mt-6">
+            <div className="flex flex-wrap justify-center gap-2">
               {quickPills.map(item => (
                 <button
                   key={item.label}
