@@ -318,44 +318,80 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
-      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH 3D CINEMATIC SHOWCASE ── */}
-      <section className="relative overflow-hidden pt-10 pb-16 lg:pt-14 lg:pb-24 bg-gradient-to-b from-blue-50/70 via-indigo-50/30 to-slate-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 border-b border-slate-200/60 dark:border-slate-800/80">
+      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH FULL 3D CINEMATIC VIDEO BACKGROUND ── */}
+      <section className="relative overflow-hidden pt-16 pb-24 lg:pt-20 lg:pb-32 bg-slate-950 border-b border-slate-800/80 text-white">
         
-        {/* Luminous Ambient Glows for Light & Dark Mode */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[360px] bg-blue-500/10 dark:bg-primary-600/25 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute top-10 right-10 w-72 h-72 bg-amber-400/15 dark:bg-accent-500/20 blur-[100px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-indigo-500/10 dark:bg-indigo-500/15 blur-[100px] rounded-full pointer-events-none" />
+        {/* ── CINEMATIC 3D BACKGROUND VIDEO LAYER ── */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          <video
+            ref={videoRef}
+            autoPlay
+            loop
+            muted={isMuted}
+            playsInline
+            className="w-full h-full object-cover opacity-60 dark:opacity-50 scale-105"
+          >
+            <source src="/hero-promo.mp4" type="video/mp4" />
+            <source src="/All%20in%20One%20video.mp4" type="video/mp4" />
+          </video>
+          {/* Multi-layered cinematic frosted overlay for crystal-clear text readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/60 to-slate-950/95 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 bg-gradient-to-r from-blue-950/30 via-transparent to-indigo-950/30" />
+        </div>
 
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 text-center">
+        {/* Luminous Ambient Glow Accents */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[360px] bg-blue-500/15 blur-[130px] rounded-full pointer-events-none z-0" />
+        <div className="absolute top-10 right-10 w-72 h-72 bg-amber-400/10 blur-[100px] rounded-full pointer-events-none z-0" />
+        <div className="absolute bottom-0 left-10 w-80 h-80 bg-indigo-500/15 blur-[100px] rounded-full pointer-events-none z-0" />
+
+        {/* Background Sound / Play Control (Top Right of Hero) */}
+        <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              if (videoRef.current) {
+                videoRef.current.muted = !isMuted;
+                setIsMuted(!isMuted);
+              }
+            }}
+            className="px-3 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-lg"
+            title={isMuted ? 'Unmute Video' : 'Mute Video'}
+          >
+            {isMuted ? <VolumeX size={14} className="text-slate-300" /> : <Volume2 size={14} className="text-amber-400" />}
+            <span className="hidden sm:inline">{isMuted ? 'Sound Off' : 'Sound On'}</span>
+          </button>
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 text-center z-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
           >
             {/* Top Pill Tag */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/80 dark:bg-white/10 backdrop-blur-md border border-slate-200/80 dark:border-white/15 text-xs font-bold text-slate-700 dark:text-slate-200 mb-6 shadow-sm">
-              <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-slate-100 mb-6 shadow-sm">
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               Pakistan's #1 Verified Marketplace
-              <Star size={13} className="text-amber-500 fill-amber-500 ml-0.5" />
+              <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
             </div>
 
             {/* Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 dark:text-white mb-4 leading-tight sm:leading-none">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight sm:leading-none drop-shadow-md">
               Buy, Sell & Discover
               <br />
-              <span className="bg-gradient-to-r from-primary-600 via-indigo-600 to-amber-600 dark:from-blue-400 dark:via-indigo-300 dark:to-amber-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-amber-300 bg-clip-text text-transparent">
                 Everything Across Pakistan
               </span>
             </h1>
 
-            <p className="text-slate-600 dark:text-slate-300 text-sm sm:text-base lg:text-lg mb-8 max-w-2xl mx-auto font-normal leading-relaxed">
+            <p className="text-slate-200 text-sm sm:text-base lg:text-lg mb-8 max-w-2xl mx-auto font-normal leading-relaxed drop-shadow">
               Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
             </p>
 
             {/* Glassmorphic Search Bar */}
             <form
               onSubmit={handleSearch}
-              className="p-2 sm:p-2.5 bg-white/90 dark:bg-slate-900/80 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-700/60 rounded-3xl shadow-xl shadow-slate-200/60 dark:shadow-2xl max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-8"
+              className="p-2 sm:p-2.5 bg-slate-900/80 backdrop-blur-2xl border border-slate-700/80 rounded-3xl shadow-2xl max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-6"
             >
               <div className="flex-1 relative flex items-center">
                 <Search size={20} className="absolute left-4 text-slate-400" />
@@ -364,7 +400,7 @@ const HomePage: React.FC = () => {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Find Mobiles, Cars, Bikes, Laptops, Houses..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-transparent text-slate-900 dark:text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white dark:focus:bg-slate-800 text-sm font-medium transition-all"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800/90 border border-slate-700/60 text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-slate-800 text-sm font-medium transition-all"
                 />
               </div>
 
@@ -373,7 +409,7 @@ const HomePage: React.FC = () => {
                 <select
                   value={selectedCity}
                   onChange={e => setSelectedCity(e.target.value)}
-                  className="w-full pl-10 pr-8 py-3.5 bg-slate-50/90 dark:bg-slate-800/90 border border-slate-200/70 dark:border-transparent text-slate-800 dark:text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white dark:focus:bg-slate-800 text-sm font-medium transition-all appearance-none cursor-pointer"
+                  className="w-full pl-10 pr-8 py-3.5 bg-slate-800/90 border border-slate-700/60 text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-slate-800 text-sm font-medium transition-all appearance-none cursor-pointer"
                 >
                   <option value="">All Pakistan</option>
                   {CITIES.map(c => (
@@ -394,80 +430,6 @@ const HomePage: React.FC = () => {
               </button>
             </form>
 
-            {/* ── 3D CINEMATIC SHOWCASE VIDEO CARD ── */}
-            <div className="relative max-w-4xl mx-auto rounded-3xl p-1.5 sm:p-2 bg-gradient-to-br from-blue-500/30 via-indigo-500/20 to-amber-500/30 shadow-2xl shadow-primary-600/15 dark:shadow-primary-950/60 backdrop-blur-2xl border border-white/40 dark:border-white/10 group mb-6">
-              <div className="relative rounded-[22px] overflow-hidden bg-slate-950 aspect-video sm:aspect-[21/9] flex items-center justify-center">
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  loop
-                  muted={isMuted}
-                  playsInline
-                  className="w-full h-full object-cover"
-                >
-                  <source src="/hero-promo.mp4" type="video/mp4" />
-                  <source src="/All%20in%20One%20video.mp4" type="video/mp4" />
-                </video>
-
-                {/* Subtle Gradient Overlays */}
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/75 via-transparent to-slate-950/30 pointer-events-none" />
-
-                {/* Top Badge on Video */}
-                <div className="absolute top-3 left-3 sm:top-4 sm:left-4 flex items-center gap-2 px-3 py-1 rounded-full bg-slate-900/80 backdrop-blur-md border border-white/15 text-[11px] font-bold text-white shadow-lg pointer-events-none">
-                  <Sparkles size={13} className="text-amber-400 animate-pulse" />
-                  <span>3D Marketplace Showcase</span>
-                </div>
-
-                {/* Video Controls Bar (Bottom Right) */}
-                <div className="absolute bottom-3 right-3 sm:bottom-4 sm:right-4 flex items-center gap-2 z-10">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (videoRef.current) {
-                        if (isPlaying) {
-                          videoRef.current.pause();
-                          setIsPlaying(false);
-                        } else {
-                          videoRef.current.play();
-                          setIsPlaying(true);
-                        }
-                      }
-                    }}
-                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-800 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-lg"
-                    title={isPlaying ? 'Pause' : 'Play'}
-                  >
-                    {isPlaying ? <Pause size={14} /> : <Play size={14} />}
-                    <span className="hidden sm:inline">{isPlaying ? 'Pause' : 'Play'}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (videoRef.current) {
-                        videoRef.current.muted = !isMuted;
-                        setIsMuted(!isMuted);
-                      }
-                    }}
-                    className="p-2 sm:px-3 sm:py-1.5 rounded-full bg-slate-900/85 hover:bg-slate-800 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-lg"
-                    title={isMuted ? 'Unmute' : 'Mute'}
-                  >
-                    {isMuted ? <VolumeX size={14} className="text-slate-300" /> : <Volume2 size={14} className="text-amber-400" />}
-                    <span className="hidden sm:inline">{isMuted ? 'Mute' : 'Sound On'}</span>
-                  </button>
-                </div>
-
-                {/* Bottom Left Slogan */}
-                <div className="absolute bottom-3 left-3 sm:bottom-4 sm:left-4 text-left pointer-events-none hidden sm:block">
-                  <p className="text-xs font-bold text-white/90 drop-shadow-md">
-                    Everything You Need • All In One Marketplace
-                  </p>
-                  <p className="text-[10px] text-white/70">
-                    Vehicles • Mobiles • Real Estate • Electronics • Fashion • Furniture
-                  </p>
-                </div>
-              </div>
-            </div>
-
             {/* Quick Category Suggestion Pills */}
             <div className="flex flex-wrap justify-center gap-2">
               {quickPills.map(item => (
@@ -478,9 +440,9 @@ const HomePage: React.FC = () => {
                     setSearchQuery(item.query);
                     navigate(`/listings?q=${encodeURIComponent(item.query)}`);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white dark:bg-white/5 hover:bg-slate-100 dark:hover:bg-white/15 backdrop-blur-md border border-slate-200/90 dark:border-white/10 text-slate-700 dark:text-slate-300 hover:text-primary-600 dark:hover:text-white text-xs font-semibold shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white text-xs font-semibold shadow-sm transition-all"
                 >
-                  <item.icon size={13} className="text-primary-500 dark:text-primary-400" />
+                  <item.icon size={13} className="text-primary-400" />
                   {item.label}
                 </button>
               ))}
