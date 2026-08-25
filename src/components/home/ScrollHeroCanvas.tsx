@@ -202,12 +202,16 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('touchmove', handleScroll, { passive: true });
     window.addEventListener('resize', handleScroll, { passive: true });
+    window.visualViewport?.addEventListener('resize', handleScroll);
+    window.visualViewport?.addEventListener('scroll', handleScroll);
     handleScroll();
 
     return () => {
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('touchmove', handleScroll);
       window.removeEventListener('resize', handleScroll);
+      window.visualViewport?.removeEventListener('resize', handleScroll);
+      window.visualViewport?.removeEventListener('scroll', handleScroll);
     };
   }, [containerRef, onStageChange]);
 
