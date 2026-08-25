@@ -1,14 +1,27 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { Play, Pause, RotateCcw, Sparkles } from 'lucide-react';
 
 const TOTAL_FRAMES = 50;
 
-export const ScrollHeroCanvas: React.FC = () => {
+interface ScrollHeroCanvasProps {
+  progress?: number; // 0 to 1 progress from parent, optional
+  onFrameChange?: (frame: number, progress: number) => void;
+}
+
+export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
+  progress: externalProgress,
+  onFrameChange,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const imagesRef = useRef<HTMLImageElement[]>([]);
   const currentFrameRef = useRef<number>(0);
   const targetFrameRef = useRef<number>(0);
   const animFrameIdRef = useRef<number | null>(null);
+  const autoPlayTimerRef = useRef<number | null>(null);
+
   const [loadedCount, setLoadedCount] = useState<number>(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
+  const [activeFrameDisplay, setActiveFrameDisplay] = useState<number>(1);
 
   // 1. Preload all 50 frames
   useEffect(() => {
@@ -22,7 +35,6 @@ export const ScrollHeroCanvas: React.FC = () => {
       img.onload = () => {
         count++;
         setLoadedCount(count);
-        // Draw the first frame immediately once loaded
         if (i === 1 && canvasRef.current) {
           renderFrame(0);
         }
@@ -34,11 +46,12 @@ export const ScrollHeroCanvas: React.FC = () => {
 
     return () => {
       imagesRef.current = [];
+      if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
     };
   }, []);
 
-  // 2. Render frame to canvas with object-fit: cover math
-  const renderFrame = (index: number) => {
+  // 2. Render frame to canvas with high-DPI scaling and object-fit cover
+  const renderFrame = useCallback((index: number) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -60,7 +73,7 @@ export const ScrollHeroCanvas: React.FC = () => {
     ctx.save();
     ctx.scale(dpr, dpr);
 
-    // Calculate aspect ratio cover
+    // Calculate aspect ratio cover math
     const imgRatio = img.naturalWidth / img.naturalHeight;
     const canvasRatio = width / height;
 
@@ -79,40 +92,60 @@ export const ScrollHeroCanvas: React.FC = () => {
 
     ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
     ctx.restore();
-  };
+  }, []);
 
-  // 3. Scroll tracking + Lerp Animation Loop
+  // 3. Auto-play functionality (smooth preview mode)
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollY = window.scrollY || window.pageYOffset;
-      // Scrub through 50 frames over the first 650px of scrolling
-      const maxScroll = 650;
-      const progress = Math.min(Math.max(scrollY / maxScroll, 0), 1);
+    if (isAutoPlaying) {
+      autoPlayTimerRef.current = window.setInterval(() => {
+        targetFrameRef.current = (targetFrameRef.current + 1) % TOTAL_FRAMES;
+      }, 55); // ~18-20 fps for cinematic pace
+    } else {
+      if (autoPlayTimerRef.current) {
+        clearInterval(autoPlayTimerRef.current);
+        autoPlayTimerRef.current = null;
+      }
+    }
+    return () => {
+      if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
+    };
+  }, [isAutoPlaying]);
+
+  // 4. External or Scroll Progress Sync
+  useEffect(() => {
+    if (isAutoPlaying) return;
+
+    if (externalProgress !== undefined) {
       const targetIndex = Math.min(
-        Math.floor(progress * (TOTAL_FRAMES - 1)),
+        Math.max(Math.floor(externalProgress * (TOTAL_FRAMES - 1)), 0),
         TOTAL_FRAMES - 1
       );
       targetFrameRef.current = targetIndex;
-    };
+    }
+  }, [externalProgress, isAutoPlaying]);
 
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll, { passive: true });
-    handleScroll();
+  // 5. Physics-based Smooth Lerp Render Loop
+  useEffect(() => {
+    let lastDrawn = -1;
 
-    // Smooth animation loop using lerp for silky frame transitions
-    let lastRenderedFrame = -1;
     const loop = () => {
       const diff = targetFrameRef.current - currentFrameRef.current;
       if (Math.abs(diff) > 0.01) {
-        currentFrameRef.current += diff * 0.2; // Smooth damping
+        currentFrameRef.current += diff * 0.15; // Smooth damping
       } else {
         currentFrameRef.current = targetFrameRef.current;
       }
 
-      const frameToDraw = Math.round(currentFrameRef.current);
-      if (frameToDraw !== lastRenderedFrame) {
+      const frameToDraw = Math.min(
+        Math.max(Math.round(currentFrameRef.current), 0),
+        TOTAL_FRAMES - 1
+      );
+
+      if (frameToDraw !== lastDrawn) {
         renderFrame(frameToDraw);
-        lastRenderedFrame = frameToDraw;
+        lastDrawn = frameToDraw;
+        setActiveFrameDisplay(frameToDraw + 1);
+        onFrameChange?.(frameToDraw + 1, frameToDraw / (TOTAL_FRAMES - 1));
       }
 
       animFrameIdRef.current = requestAnimationFrame(loop);
@@ -121,19 +154,45 @@ export const ScrollHeroCanvas: React.FC = () => {
     animFrameIdRef.current = requestAnimationFrame(loop);
 
     return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-      if (animFrameIdRef.current) {
-        cancelAnimationFrame(animFrameIdRef.current);
-      }
+      if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     };
-  }, [loadedCount]);
+  }, [renderFrame, onFrameChange]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="absolute inset-0 w-full h-full object-cover transition-opacity duration-500 opacity-95 dark:opacity-90"
-      style={{ imageRendering: 'auto' }}
-    />
+    <div className="absolute inset-0 w-full h-full">
+      {/* HTML5 Canvas */}
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full object-cover transition-opacity duration-300 opacity-100 dark:opacity-95"
+      />
+
+      {/* Floating Interactive Frame Controls (Top Right) */}
+      <div className="absolute top-4 right-4 z-30 flex items-center gap-2 pointer-events-auto">
+        <button
+          type="button"
+          onClick={() => setIsAutoPlaying(!isAutoPlaying)}
+          className="px-3.5 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
+          title={isAutoPlaying ? 'Pause Auto Animation' : 'Auto Play 3D Animation'}
+        >
+          {isAutoPlaying ? (
+            <>
+              <Pause size={13} className="text-amber-400" />
+              <span>Pause</span>
+            </>
+          ) : (
+            <>
+              <Play size={13} className="text-primary-400" />
+              <span>Auto Preview</span>
+            </>
+          )}
+        </button>
+
+        {/* Frame Progress Indicator Tag */}
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-950/70 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-slate-200 shadow-xl">
+          <Sparkles size={12} className="text-amber-400" />
+          <span>{String(activeFrameDisplay).padStart(2, '0')} / {TOTAL_FRAMES}</span>
+        </div>
+      </div>
+    </div>
   );
 };
