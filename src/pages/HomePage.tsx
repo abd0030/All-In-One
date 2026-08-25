@@ -330,107 +330,94 @@ const HomePage: React.FC = () => {
           {/* Side-Aligned Dynamic Stage Content (Center is kept clean and open for 3D visuals) */}
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 w-full z-10 pointer-events-none">
             
-            {/* ── STAGE 1: MAIN HERO & SEARCH (0% - 35% Scroll) ── */}
+            {/* ── STAGE 1: MAIN SEARCH & HERO (CENTERED) ── */}
             {activeStage === 1 && (
               <motion.div
                 key="stage-1"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -15 }}
+                transition={{ duration: 0.4 }}
+                className="max-w-4xl mx-auto text-center space-y-4 pointer-events-auto"
               >
-                {/* Left Side: Headline & Category Pills */}
-                <div className="lg:col-span-5 text-left space-y-4 pointer-events-auto">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 text-xs font-bold text-white shadow-xl">
-                    <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                    Pakistan's #1 Verified Marketplace
-                    <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
-                  </div>
-
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
-                    Buy, Sell & Discover
-                    <br />
-                    <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent">
-                      Across Pakistan
-                    </span>
-                  </h1>
-
-                  <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                    Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
-                  </p>
-
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {quickPills.slice(0, 4).map(item => (
-                      <button
-                        key={item.label}
-                        type="button"
-                        onClick={() => {
-                          setSearchQuery(item.query);
-                          navigate(`/listings?q=${encodeURIComponent(item.query)}`);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-900/90 backdrop-blur-xl border border-white/20 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105"
-                      >
-                        <item.icon size={13} className="text-primary-400" />
-                        {item.label}
-                      </button>
-                    ))}
-                  </div>
+                {/* Top Pill Tag */}
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 text-xs font-bold text-white mb-2 shadow-xl">
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                  Pakistan's #1 Verified Marketplace
+                  <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
                 </div>
 
-                {/* Center Column: Intentionally Clean / Empty for 3D Product Visual */}
-                <div className="lg:col-span-2 hidden lg:block pointer-events-none" />
+                {/* Headline with High-Contrast Text Shadows */}
+                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight sm:leading-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+                  Buy, Sell & Discover
+                  <br />
+                  <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+                    Everything Across Pakistan
+                  </span>
+                </h1>
 
-                {/* Right Side: Compact Glassmorphic Search Box */}
-                <div className="lg:col-span-5 pointer-events-auto">
-                  <div className="p-5 sm:p-6 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-4">
-                    <div className="flex items-center gap-2">
-                      <Search size={16} className="text-primary-400" />
-                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Search Marketplace</h3>
-                    </div>
+                <p className="text-slate-100 text-sm sm:text-base lg:text-lg mb-6 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
+                  Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
+                </p>
 
-                    <form onSubmit={handleSearch} className="space-y-3">
-                      <div className="relative flex items-center">
-                        <Search size={18} className="absolute left-3.5 text-slate-400" />
-                        <input
-                          type="text"
-                          value={searchQuery}
-                          onChange={e => setSearchQuery(e.target.value)}
-                          placeholder="Mobiles, Cars, Bikes, Houses..."
-                          className="w-full pl-10 pr-4 py-3 bg-white/10 dark:bg-slate-900/90 border border-white/15 dark:border-slate-700/80 text-white placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all"
-                        />
-                      </div>
-
-                      <div className="relative flex items-center">
-                        <MapPin size={18} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                        <select
-                          value={selectedCity}
-                          onChange={e => setSelectedCity(e.target.value)}
-                          className="w-full pl-10 pr-8 py-3 bg-white/10 dark:bg-slate-900/90 border border-white/15 dark:border-slate-700/80 text-slate-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all appearance-none cursor-pointer"
-                        >
-                          <option value="" className="text-slate-900">All Pakistan</option>
-                          {CITIES.map(c => (
-                            <option key={c} value={c} className="text-slate-900">{c}</option>
-                          ))}
-                        </select>
-                        <div className="absolute right-3 pointer-events-none text-slate-400 text-xs">▼</div>
-                      </div>
-
-                      <button
-                        type="submit"
-                        className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
-                      >
-                        <Search size={16} />
-                        Search Ads
-                      </button>
-                    </form>
-
-                    <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300 font-medium">
-                      <span>✓ 50k+ Live Ads</span>
-                      <span>✓ 30+ Cities</span>
-                      <span>✓ 0% Fee</span>
-                    </div>
+                {/* Glassmorphic Unified Horizontal Search Bar */}
+                <form
+                  onSubmit={handleSearch}
+                  className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/40 dark:border-slate-700/80 rounded-3xl shadow-2xl shadow-slate-950/50 max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-4"
+                >
+                  <div className="flex-1 relative flex items-center">
+                    <Search size={20} className="absolute left-4 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Find Mobiles, Cars, Bikes, Laptops, Houses..."
+                      className="w-full pl-12 pr-4 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all"
+                    />
                   </div>
+
+                  <div className="sm:w-48 relative flex items-center">
+                    <MapPin size={18} className="absolute left-3.5 text-slate-400 pointer-events-none" />
+                    <select
+                      value={selectedCity}
+                      onChange={e => setSelectedCity(e.target.value)}
+                      className="w-full pl-10 pr-8 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="">All Pakistan</option>
+                      {CITIES.map(c => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <div className="absolute right-3 pointer-events-none text-slate-400 text-xs">▼</div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="px-8 py-3.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/30 hover:shadow-primary-600/50 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-2"
+                  >
+                    <Search size={16} />
+                    Search Ads
+                  </button>
+                </form>
+
+                {/* Quick Category Suggestion Pills (Centered) */}
+                <div className="flex flex-wrap justify-center gap-2">
+                  {quickPills.map(item => (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => {
+                        setSearchQuery(item.query);
+                        navigate(`/listings?q=${encodeURIComponent(item.query)}`);
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-950/75 hover:bg-slate-900/95 backdrop-blur-xl border border-white/25 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105"
+                    >
+                      <item.icon size={13} className="text-primary-400" />
+                      {item.label}
+                    </button>
+                  ))}
                 </div>
               </motion.div>
             )}
