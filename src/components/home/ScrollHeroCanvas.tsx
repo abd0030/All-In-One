@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { Play, Pause, Sparkles, Moon, Sun } from 'lucide-react';
+import { Play, Pause, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const TOTAL_FRAMES = 212;
@@ -15,8 +15,8 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
 }) => {
   const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  
-  // Image cache per theme
+
+  // Cached decoded Image elements per theme
   const imagesCacheRef = useRef<{ light: (HTMLImageElement | null)[]; dark: (HTMLImageElement | null)[] }>({
     light: new Array(TOTAL_FRAMES).fill(null),
     dark: new Array(TOTAL_FRAMES).fill(null),
@@ -37,8 +37,9 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
 
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
   const [activeFrameDisplay, setActiveFrameDisplay] = useState<number>(1);
+  const [initialFrameReady, setInitialFrameReady] = useState<boolean>(false);
 
-  // Helper: Find nearest loaded frame
+  // Helper: Find nearest loaded frame index
   const getNearestLoadedIndex = useCallback((targetIdx: number, t: 'light' | 'dark'): number => {
     const map = loadedMapRef.current[t];
     if (!map) return 0;
@@ -55,7 +56,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     return 0;
   }, []);
 
-  // Fast, Hardware-Accelerated Single Draw
+  // Hardware-accelerated draw
   const drawFrame = useCallback((frameIdx: number, t?: 'light' | 'dark') => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -81,7 +82,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     ctx.scale(dpr, dpr);
     ctx.clearRect(0, 0, width, height);
 
-    // Calculate aspect ratio cover math
+    // Responsive aspect ratio cover math (perfect on mobile, tablets & laptops)
     const imgRatio = img.naturalWidth / img.naturalHeight;
     const canvasRatio = width / height;
 
@@ -103,7 +104,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     lastDrawnFrameRef.current = frameIdx;
   }, [getNearestLoadedIndex]);
 
-  // 1. Efficient Chunked Preloader (Fast initial frame + smooth background batching)
+  // Single Image Loader with instant decode
   const loadSingleImage = useCallback((index: number, t: 'light' | 'dark'): Promise<HTMLImageElement> => {
     return new Promise((resolve) => {
       const existing = imagesCacheRef.current[t][index];
@@ -113,41 +114,79 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
 
       const img = new Image();
       const frameNum = String(index + 1).padStart(3, '0');
-      img.src = `/frames/${t}/ezgif-frame-${frameNum}.jpg`;
+      img.src = `/frames/${t}/ezgif-frame-${frameNum}.webp`;
+      img.decoding = 'async';
 
-      img.onload = () => {
+      const onComplete = () => {
         imagesCacheRef.current[t][index] = img;
         loadedMapRef.current[t][index] = true;
-        if (index === 0 && activeThemeRef.current === t && lastDrawnFrameRef.current === -1) {
+        if (index === 0 && activeThemeRef.current === t) {
+          setInitialFrameReady(true);
           drawFrame(0, t);
         }
         resolve(img);
       };
 
+      img.onload = () => {
+        if ('decode' in img && typeof img.decode === 'function') {
+          img.decode().then(onComplete).catch(onComplete);
+        } else {
+          onComplete();
+        }
+      };
+
       img.onerror = () => {
-        loadedMapRef.current[t][index] = false;
-        resolve(img);
+        // Fallback to JPG
+        img.src = `/frames/${t}/ezgif-frame-${frameNum}.jpg`;
+        img.onload = onComplete;
+        img.onerror = () => {
+          loadedMapRef.current[t][index] = false;
+          resolve(img);
+        };
       };
     });
   }, [drawFrame]);
 
-  // Preload frames in chunks so network doesn't choke
-  const preloadAllFramesForTheme = useCallback(async (t: 'light' | 'dark') => {
-    // 1. Immediately load frame 0 and first 15 frames
+  // 3-Tier Progressive Preload:
+  // Phase 1 (0ms): Instant Frame 0 render
+  // Phase 2 (<100ms): 18-frame sparse scaffold spanning 0% to 100% scroll
+  // Phase 3: Secondary density scaffold
+  // Phase 4: Idle density infill
+  const preloadThemeProgressive = useCallback(async (t: 'light' | 'dark') => {
+    // 1. Instant initial frame
     await loadSingleImage(0, t);
-    const initialBatch = [];
-    for (let i = 1; i < Math.min(15, TOTAL_FRAMES); i++) {
-      initialBatch.push(loadSingleImage(i, t));
-    }
-    await Promise.all(initialBatch);
 
-    // 2. Load the rest in small chunks of 12
-    const CHUNK_SIZE = 12;
-    for (let i = 15; i < TOTAL_FRAMES; i += CHUNK_SIZE) {
-      const chunk = [];
-      for (let j = i; j < Math.min(i + CHUNK_SIZE, TOTAL_FRAMES); j++) {
-        chunk.push(loadSingleImage(j, t));
+    // 2. Fast Sparse Scaffold across 0% - 100% of the entire animation
+    const scaffoldIndices: number[] = [];
+    for (let i = 12; i < TOTAL_FRAMES; i += 12) {
+      scaffoldIndices.push(i);
+    }
+    if (!scaffoldIndices.includes(TOTAL_FRAMES - 1)) {
+      scaffoldIndices.push(TOTAL_FRAMES - 1);
+    }
+    await Promise.all(scaffoldIndices.map(idx => loadSingleImage(idx, t)));
+
+    // 3. Secondary density scaffold
+    const secondaryIndices: number[] = [];
+    for (let i = 4; i < TOTAL_FRAMES; i += 4) {
+      if (!loadedMapRef.current[t][i]) {
+        secondaryIndices.push(i);
       }
+    }
+    for (let i = 0; i < secondaryIndices.length; i += 10) {
+      const batch = secondaryIndices.slice(i, i + 10).map(idx => loadSingleImage(idx, t));
+      await Promise.all(batch);
+    }
+
+    // 4. Idle Density Infill
+    const remaining: number[] = [];
+    for (let i = 0; i < TOTAL_FRAMES; i++) {
+      if (!loadedMapRef.current[t][i]) {
+        remaining.push(i);
+      }
+    }
+    for (let i = 0; i < remaining.length; i += 12) {
+      const chunk = remaining.slice(i, i + 12).map(idx => loadSingleImage(idx, t));
       await Promise.all(chunk);
     }
   }, [loadSingleImage]);
@@ -155,21 +194,21 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
   // Keep theme synced & re-draw immediately
   useEffect(() => {
     activeThemeRef.current = theme;
-    preloadAllFramesForTheme(theme);
+    preloadThemeProgressive(theme);
     lastDrawnFrameRef.current = -1;
     drawFrame(Math.round(currentFrameRef.current), theme);
-  }, [theme, preloadAllFramesForTheme, drawFrame]);
+  }, [theme, preloadThemeProgressive, drawFrame]);
 
-  // Preload opposite theme in background with gentle delay
+  // Preload opposite theme in background with idle delay
   useEffect(() => {
     const opp = theme === 'light' ? 'dark' : 'light';
     const timer = setTimeout(() => {
-      preloadAllFramesForTheme(opp);
-    }, 1500);
+      preloadThemeProgressive(opp);
+    }, 1200);
     return () => clearTimeout(timer);
-  }, [theme, preloadAllFramesForTheme]);
+  }, [theme, preloadThemeProgressive]);
 
-  // 3. Scroll tracking direct in RAF loop (Zero React Re-renders on parent!)
+  // Responsive scroll & visualViewport tracking (Mobile + Laptop + Desktop)
   useEffect(() => {
     const handleScroll = () => {
       if (isAutoPlayingRef.current) return;
@@ -215,12 +254,12 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     };
   }, [containerRef, onStageChange]);
 
-  // 4. Physics-based Smooth Animation Loop (60fps lock with ultra-smooth lerp)
+  // Physics-based Smooth Animation Loop (60fps lock with snappy & silky response)
   useEffect(() => {
     const loop = () => {
       const diff = targetFrameRef.current - currentFrameRef.current;
       if (Math.abs(diff) > 0.01) {
-        currentFrameRef.current += diff * 0.12; // Snappy & silky response
+        currentFrameRef.current += diff * 0.12;
       } else {
         currentFrameRef.current = targetFrameRef.current;
       }
@@ -245,7 +284,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     };
   }, [drawFrame]);
 
-  // 5. Auto-play Toggle
+  // Auto-play Toggle
   const toggleAutoPlay = () => {
     const next = !isAutoPlaying;
     setIsAutoPlaying(next);
@@ -254,7 +293,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     if (next) {
       autoPlayTimerRef.current = window.setInterval(() => {
         targetFrameRef.current = (targetFrameRef.current + 1) % TOTAL_FRAMES;
-      }, 33); // Smooth 30fps auto-play
+      }, 33);
     } else {
       if (autoPlayTimerRef.current) {
         clearInterval(autoPlayTimerRef.current);
@@ -270,36 +309,46 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
   }, []);
 
   return (
-    <div className="absolute inset-0 w-full h-full pointer-events-none">
-      {/* HTML5 Canvas */}
+    <div className="absolute inset-0 w-full h-full pointer-events-none select-none">
+      {/* 0-Second Instant Poster Image Fallback (Guarantees zero blank screen while initial canvas mounts) */}
+      <img
+        src={`/frames/${theme}/ezgif-frame-001.webp`}
+        alt="Hero Background 3D"
+        className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-500 ${
+          initialFrameReady ? 'opacity-0 pointer-events-none' : 'opacity-100'
+        }`}
+        loading="eager"
+      />
+
+      {/* HTML5 Hardware-Accelerated Canvas */}
       <canvas
         ref={canvasRef}
         className="w-full h-full object-cover transition-opacity duration-300 opacity-100 dark:opacity-95"
       />
 
-      {/* Floating Interactive Frame Controls (Top Right) */}
-      <div className="absolute top-4 right-4 z-30 flex items-center gap-2 pointer-events-auto">
+      {/* Floating Interactive Frame Controls (Top Right, responsive sizing) */}
+      <div className="absolute top-3 sm:top-4 right-3 sm:right-4 z-30 flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
         <button
           type="button"
           onClick={toggleAutoPlay}
-          className="px-3.5 py-1.5 rounded-full bg-slate-900/85 dark:bg-slate-950/85 hover:bg-slate-800 dark:hover:bg-slate-900 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
+          className="px-3 py-1.5 sm:px-3.5 sm:py-1.5 rounded-full bg-slate-900/85 dark:bg-slate-950/85 hover:bg-slate-800 dark:hover:bg-slate-900 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
           title={isAutoPlaying ? 'Pause Auto Animation' : 'Auto Play 3D Animation'}
         >
           {isAutoPlaying ? (
             <>
-              <Pause size={13} className="text-amber-400" />
-              <span>Pause</span>
+              <Pause size={12} className="text-amber-400" />
+              <span className="text-[11px] sm:text-xs">Pause</span>
             </>
           ) : (
             <>
-              <Play size={13} className="text-primary-400" />
-              <span>Auto Preview</span>
+              <Play size={12} className="text-primary-400" />
+              <span className="text-[11px] sm:text-xs">Auto Preview</span>
             </>
           )}
         </button>
 
         {/* Frame Progress & Theme Tag */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/75 dark:bg-slate-950/75 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-slate-200 shadow-xl">
+        <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/75 dark:bg-slate-950/75 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-slate-200 shadow-xl">
           {theme === 'dark' ? <Moon size={11} className="text-indigo-400" /> : <Sun size={11} className="text-amber-400" />}
           <span>{String(activeFrameDisplay).padStart(3, '0')} / {TOTAL_FRAMES}</span>
         </div>
