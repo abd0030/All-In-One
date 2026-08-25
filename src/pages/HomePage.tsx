@@ -318,10 +318,10 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
-      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH FULL 3D CINEMATIC VIDEO BACKGROUND ── */}
-      <section className="relative overflow-hidden pt-16 pb-24 lg:pt-20 lg:pb-32 bg-slate-950 border-b border-slate-800/80 text-white">
+      {/* ── 1. MODERN THEME-RESPONSIVE HERO SECTION WITH HIGH-CLARITY 3D VIDEO BACKGROUND ── */}
+      <section className="relative overflow-hidden pt-14 pb-20 lg:pt-18 lg:pb-28 bg-slate-950 border-b border-slate-800/80 text-white">
         
-        {/* ── CINEMATIC 3D BACKGROUND VIDEO LAYER ── */}
+        {/* ── HIGH-CLARITY CINEMATIC 3D BACKGROUND VIDEO ── */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
           <video
             ref={videoRef}
@@ -329,20 +329,17 @@ const HomePage: React.FC = () => {
             loop
             muted={isMuted}
             playsInline
-            className="w-full h-full object-cover opacity-60 dark:opacity-50 scale-105"
+            className="w-full h-full object-cover opacity-95 dark:opacity-90 transition-opacity duration-300"
           >
             <source src="/hero-promo.mp4" type="video/mp4" />
             <source src="/All%20in%20One%20video.mp4" type="video/mp4" />
           </video>
-          {/* Multi-layered cinematic frosted overlay for crystal-clear text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/80 via-slate-950/60 to-slate-950/95 backdrop-blur-[2px]" />
-          <div className="absolute inset-0 bg-gradient-to-r from-blue-950/30 via-transparent to-indigo-950/30" />
+          
+          {/* Subtle Dynamic Theme Vignette (Crystal-clear video while keeping text readable) */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 dark:from-slate-950/50 dark:via-transparent dark:to-slate-950/90" />
+          {/* Soft Radial Ambient Contrast Behind Text */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(15,23,42,0.45)_0%,rgba(15,23,42,0.1)_70%,rgba(15,23,42,0.7)_100%)]" />
         </div>
-
-        {/* Luminous Ambient Glow Accents */}
-        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[650px] h-[360px] bg-blue-500/15 blur-[130px] rounded-full pointer-events-none z-0" />
-        <div className="absolute top-10 right-10 w-72 h-72 bg-amber-400/10 blur-[100px] rounded-full pointer-events-none z-0" />
-        <div className="absolute bottom-0 left-10 w-80 h-80 bg-indigo-500/15 blur-[100px] rounded-full pointer-events-none z-0" />
 
         {/* Background Sound / Play Control (Top Right of Hero) */}
         <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
@@ -354,7 +351,7 @@ const HomePage: React.FC = () => {
                 setIsMuted(!isMuted);
               }
             }}
-            className="px-3 py-1.5 rounded-full bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-lg"
+            className="px-3.5 py-1.5 rounded-full bg-slate-950/80 hover:bg-slate-900 backdrop-blur-xl border border-white/25 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
             title={isMuted ? 'Unmute Video' : 'Mute Video'}
           >
             {isMuted ? <VolumeX size={14} className="text-slate-300" /> : <Volume2 size={14} className="text-amber-400" />}
@@ -369,29 +366,29 @@ const HomePage: React.FC = () => {
             transition={{ duration: 0.5 }}
           >
             {/* Top Pill Tag */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-xs font-bold text-slate-100 mb-6 shadow-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/75 backdrop-blur-xl border border-white/25 text-xs font-bold text-white mb-6 shadow-xl">
               <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
               Pakistan's #1 Verified Marketplace
               <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
             </div>
 
-            {/* Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight sm:leading-none drop-shadow-md">
+            {/* Headline with High-Contrast Text Shadows */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight sm:leading-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
               Buy, Sell & Discover
               <br />
-              <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-amber-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
                 Everything Across Pakistan
               </span>
             </h1>
 
-            <p className="text-slate-200 text-sm sm:text-base lg:text-lg mb-8 max-w-2xl mx-auto font-normal leading-relaxed drop-shadow">
+            <p className="text-slate-100 text-sm sm:text-base lg:text-lg mb-8 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
               Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
             </p>
 
-            {/* Glassmorphic Search Bar */}
+            {/* Glassmorphic Search Bar (Adaptive for Light & Dark readability) */}
             <form
               onSubmit={handleSearch}
-              className="p-2 sm:p-2.5 bg-slate-900/80 backdrop-blur-2xl border border-slate-700/80 rounded-3xl shadow-2xl max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-6"
+              className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/40 dark:border-slate-700/80 rounded-3xl shadow-2xl shadow-slate-950/50 max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-6"
             >
               <div className="flex-1 relative flex items-center">
                 <Search size={20} className="absolute left-4 text-slate-400" />
@@ -400,7 +397,7 @@ const HomePage: React.FC = () => {
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
                   placeholder="Find Mobiles, Cars, Bikes, Laptops, Houses..."
-                  className="w-full pl-12 pr-4 py-3.5 bg-slate-800/90 border border-slate-700/60 text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-slate-800 text-sm font-medium transition-all"
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white dark:focus:bg-slate-800 text-sm font-medium transition-all"
                 />
               </div>
 
@@ -409,7 +406,7 @@ const HomePage: React.FC = () => {
                 <select
                   value={selectedCity}
                   onChange={e => setSelectedCity(e.target.value)}
-                  className="w-full pl-10 pr-8 py-3.5 bg-slate-800/90 border border-slate-700/60 text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-slate-800 text-sm font-medium transition-all appearance-none cursor-pointer"
+                  className="w-full pl-10 pr-8 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white dark:focus:bg-slate-800 text-sm font-medium transition-all appearance-none cursor-pointer"
                 >
                   <option value="">All Pakistan</option>
                   {CITIES.map(c => (
@@ -440,7 +437,7 @@ const HomePage: React.FC = () => {
                     setSearchQuery(item.query);
                     navigate(`/listings?q=${encodeURIComponent(item.query)}`);
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/15 text-slate-200 hover:text-white text-xs font-semibold shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-950/75 hover:bg-slate-900/95 backdrop-blur-xl border border-white/25 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105"
                 >
                   <item.icon size={13} className="text-primary-400" />
                   {item.label}
