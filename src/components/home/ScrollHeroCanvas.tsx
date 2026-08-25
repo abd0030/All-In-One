@@ -55,7 +55,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext('2d', { alpha: false });
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) return;
 
     const img = imagesRef.current[index];
@@ -72,6 +72,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
 
     ctx.save();
     ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
 
     // Calculate aspect ratio cover math
     const imgRatio = img.naturalWidth / img.naturalHeight;
@@ -99,7 +100,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     if (isAutoPlaying) {
       autoPlayTimerRef.current = window.setInterval(() => {
         targetFrameRef.current = (targetFrameRef.current + 1) % TOTAL_FRAMES;
-      }, 55); // ~18-20 fps for cinematic pace
+      }, 70); // Smooth, slower pace
     } else {
       if (autoPlayTimerRef.current) {
         clearInterval(autoPlayTimerRef.current);
@@ -124,14 +125,14 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     }
   }, [externalProgress, isAutoPlaying]);
 
-  // 5. Physics-based Smooth Lerp Render Loop
+  // 5. Physics-based Smooth Lerp Render Loop (slower, gentle interpolation)
   useEffect(() => {
     let lastDrawn = -1;
 
     const loop = () => {
       const diff = targetFrameRef.current - currentFrameRef.current;
-      if (Math.abs(diff) > 0.01) {
-        currentFrameRef.current += diff * 0.15; // Smooth damping
+      if (Math.abs(diff) > 0.005) {
+        currentFrameRef.current += diff * 0.08; // Ultra smooth and relaxed damping
       } else {
         currentFrameRef.current = targetFrameRef.current;
       }

@@ -340,190 +340,279 @@ const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
       {/* ── 1. IMMERSIVE STICKY-SCROLL HERO SECTION (50 FRAMES 3D STORY SEQUENCE) ── */}
-      <section ref={heroRef} className="relative h-[220vh] bg-slate-950 text-white">
+      <section ref={heroRef} className="relative h-[350vh] bg-slate-950 text-white">
         
         {/* Sticky Fullscreen Canvas Viewport */}
-        <div className="sticky top-0 h-screen w-full flex flex-col justify-center items-center overflow-hidden">
+        <div className="sticky top-0 h-screen w-full flex items-center justify-center overflow-hidden">
           
           {/* Background Canvas Frame Sequence */}
           <ScrollHeroCanvas progress={scrollProgress} />
           
-          {/* Subtle Dynamic Ambient Lighting & Contrast Overlays */}
+          {/* Subtle Dynamic Ambient Lighting & Contrast Overlays (Clean center) */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(15,23,42,0.45)_0%,rgba(15,23,42,0.1)_70%,rgba(15,23,42,0.7)_100%)] pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(15,23,42,0.6)_100%)] pointer-events-none" />
 
-          {/* Centered Dynamic Stage Content */}
-          <div className="relative max-w-5xl mx-auto px-4 sm:px-6 text-center z-10 w-full">
+          {/* Side-Aligned Dynamic Stage Content (Center is kept clean and open for 3D visuals) */}
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 w-full z-10 pointer-events-none">
             
-            {/* ── STAGE 1: MAIN SEARCH & HERO (0% - 35% Scroll) ── */}
+            {/* ── STAGE 1: MAIN HERO & SEARCH (0% - 35% Scroll) ── */}
             {activeStage === 1 && (
               <motion.div
                 key="stage-1"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.4 }}
-                className="space-y-4"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
               >
-                {/* Top Pill Tag */}
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/75 backdrop-blur-xl border border-white/25 text-xs font-bold text-white mb-2 shadow-xl">
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Pakistan's #1 Verified Marketplace
-                  <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
+                {/* Left Side: Headline & Category Pills */}
+                <div className="lg:col-span-5 text-left space-y-4 pointer-events-auto">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 text-xs font-bold text-white shadow-xl">
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Pakistan's #1 Verified Marketplace
+                    <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
+                  </div>
+
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white leading-tight drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
+                    Buy, Sell & Discover
+                    <br />
+                    <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent">
+                      Across Pakistan
+                    </span>
+                  </h1>
+
+                  <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                    Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {quickPills.slice(0, 4).map(item => (
+                      <button
+                        key={item.label}
+                        type="button"
+                        onClick={() => {
+                          setSearchQuery(item.query);
+                          navigate(`/listings?q=${encodeURIComponent(item.query)}`);
+                        }}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-950/80 hover:bg-slate-900/90 backdrop-blur-xl border border-white/20 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105"
+                      >
+                        <item.icon size={13} className="text-primary-400" />
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white leading-tight sm:leading-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
-                  Buy, Sell & Discover
-                  <br />
-                  <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
-                    Everything Across Pakistan
-                  </span>
-                </h1>
+                {/* Center Column: Intentionally Clean / Empty for 3D Product Visual */}
+                <div className="lg:col-span-2 hidden lg:block pointer-events-none" />
 
-                <p className="text-slate-100 text-sm sm:text-base lg:text-lg max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
-                  Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
-                </p>
+                {/* Right Side: Compact Glassmorphic Search Box */}
+                <div className="lg:col-span-5 pointer-events-auto">
+                  <div className="p-5 sm:p-6 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-4">
+                    <div className="flex items-center gap-2">
+                      <Search size={16} className="text-primary-400" />
+                      <h3 className="text-sm font-bold text-white uppercase tracking-wider">Search Marketplace</h3>
+                    </div>
 
-                {/* Glassmorphic Search Bar */}
-                <form
-                  onSubmit={handleSearch}
-                  className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/40 dark:border-slate-700/80 rounded-3xl shadow-2xl shadow-slate-950/50 max-w-3xl mx-auto flex flex-col sm:flex-row gap-2"
-                >
-                  <div className="flex-1 relative flex items-center">
-                    <Search size={20} className="absolute left-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Find Mobiles, Cars, Bikes, Laptops, Houses..."
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all"
-                    />
+                    <form onSubmit={handleSearch} className="space-y-3">
+                      <div className="relative flex items-center">
+                        <Search size={18} className="absolute left-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          value={searchQuery}
+                          onChange={e => setSearchQuery(e.target.value)}
+                          placeholder="Mobiles, Cars, Bikes, Houses..."
+                          className="w-full pl-10 pr-4 py-3 bg-white/10 dark:bg-slate-900/90 border border-white/15 dark:border-slate-700/80 text-white placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all"
+                        />
+                      </div>
+
+                      <div className="relative flex items-center">
+                        <MapPin size={18} className="absolute left-3.5 text-slate-400 pointer-events-none" />
+                        <select
+                          value={selectedCity}
+                          onChange={e => setSelectedCity(e.target.value)}
+                          className="w-full pl-10 pr-8 py-3 bg-white/10 dark:bg-slate-900/90 border border-white/15 dark:border-slate-700/80 text-slate-100 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all appearance-none cursor-pointer"
+                        >
+                          <option value="" className="text-slate-900">All Pakistan</option>
+                          {CITIES.map(c => (
+                            <option key={c} value={c} className="text-slate-900">{c}</option>
+                          ))}
+                        </select>
+                        <div className="absolute right-3 pointer-events-none text-slate-400 text-xs">▼</div>
+                      </div>
+
+                      <button
+                        type="submit"
+                        className="w-full py-3.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/30 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Search size={16} />
+                        Search Ads
+                      </button>
+                    </form>
+
+                    <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-slate-300 font-medium">
+                      <span>✓ 50k+ Live Ads</span>
+                      <span>✓ 30+ Cities</span>
+                      <span>✓ 0% Fee</span>
+                    </div>
                   </div>
-
-                  <div className="sm:w-48 relative flex items-center">
-                    <MapPin size={18} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                    <select
-                      value={selectedCity}
-                      onChange={e => setSelectedCity(e.target.value)}
-                      className="w-full pl-10 pr-8 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="">All Pakistan</option>
-                      {CITIES.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 pointer-events-none text-slate-400 text-xs">▼</div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="px-8 py-3.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/30 hover:shadow-primary-600/50 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-2"
-                  >
-                    <Search size={16} />
-                    Search Ads
-                  </button>
-                </form>
-
-                {/* Quick Category Suggestion Pills */}
-                <div className="flex flex-wrap justify-center gap-2 pt-1">
-                  {quickPills.map(item => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery(item.query);
-                        navigate(`/listings?q=${encodeURIComponent(item.query)}`);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-950/75 hover:bg-slate-900/95 backdrop-blur-xl border border-white/25 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105"
-                    >
-                      <item.icon size={13} className="text-primary-400" />
-                      {item.label}
-                    </button>
-                  ))}
                 </div>
               </motion.div>
             )}
 
-            {/* ── STAGE 2: VEHICLES, TECH & REAL ESTATE HIGHLIGHT (35% - 70% Scroll) ── */}
+            {/* ── STAGE 2: VEHICLES, TECH & REAL ESTATE (35% - 70% Scroll) ── */}
             {activeStage === 2 && (
               <motion.div
                 key="stage-2"
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.4 }}
-                className="max-w-3xl mx-auto p-6 sm:p-8 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-5"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
               >
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-xs font-bold text-blue-300">
-                  <Sparkles size={14} className="text-amber-400" />
-                  Premium 3D Marketplace Experience
+                {/* Left Side: Vehicle & Living Highlight */}
+                <div className="lg:col-span-5 text-left space-y-4 pointer-events-auto">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-xs font-bold text-blue-300">
+                    <Sparkles size={14} className="text-amber-400" />
+                    Vehicles & Real Estate
+                  </div>
+
+                  <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-md">
+                    Inspected Vehicles & Luxury Properties
+                  </h2>
+
+                  <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed drop-shadow-sm">
+                    Browse certified cars, motorcycles, houses, apartments, and plots across 30+ cities in Pakistan.
+                  </p>
+
+                  <div className="flex flex-wrap gap-2.5 pt-2">
+                    <Link
+                      to="/category/vehicles"
+                      className="px-4 py-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all hover:scale-105"
+                    >
+                      <Car size={15} className="text-amber-400" />
+                      Browse Vehicles
+                    </Link>
+                    <Link
+                      to="/category/property-for-sale"
+                      className="px-4 py-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all hover:scale-105"
+                    >
+                      <HomeIcon size={15} className="text-emerald-400" />
+                      Explore Properties
+                    </Link>
+                  </div>
                 </div>
 
-                <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-md">
-                  Inspected Vehicles, Mobiles & Luxury Properties
-                </h2>
+                {/* Center Column: Intentionally Clean / Empty for 3D Product Visual */}
+                <div className="lg:col-span-2 hidden lg:block pointer-events-none" />
 
-                <p className="text-slate-200 text-sm sm:text-base max-w-xl mx-auto leading-relaxed">
-                  Browse thousands of certified ads across 30+ cities in Pakistan with 100% direct contact with sellers.
-                </p>
+                {/* Right Side: Tech & Electronics Quick Box */}
+                <div className="lg:col-span-5 pointer-events-auto">
+                  <div className="p-5 sm:p-6 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-4">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                      <Tv size={16} className="text-primary-400" />
+                      Tech & Lifestyle Categories
+                    </h3>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-                  {[
-                    { label: 'Vehicles', icon: Car, link: '/category/vehicles' },
-                    { label: 'Mobiles', icon: Smartphone, link: '/category/mobile-tech-products' },
-                    { label: 'Property', icon: HomeIcon, link: '/category/property-for-sale' },
-                    { label: 'Electronics', icon: Tv, link: '/category/electronics-home-appliances' },
-                  ].map(c => (
-                    <Link
-                      key={c.label}
-                      to={c.link}
-                      className="p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl flex flex-col items-center gap-1.5 text-white transition-all hover:scale-105"
-                    >
-                      <c.icon size={20} className="text-amber-400" />
-                      <span className="text-xs font-bold">{c.label}</span>
-                    </Link>
-                  ))}
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <Link
+                        to="/category/mobile-tech-products"
+                        className="p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl flex items-center gap-2.5 text-white transition-all hover:scale-105"
+                      >
+                        <Smartphone size={18} className="text-primary-400 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold">Mobiles & Tech</p>
+                          <p className="text-[10px] text-slate-300">Phones, Laptops</p>
+                        </div>
+                      </Link>
+
+                      <Link
+                        to="/category/electronics-home-appliances"
+                        className="p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl flex items-center gap-2.5 text-white transition-all hover:scale-105"
+                      >
+                        <Tv size={18} className="text-amber-400 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold">Electronics</p>
+                          <p className="text-[10px] text-slate-300">TVs, Home Decor</p>
+                        </div>
+                      </Link>
+                    </div>
+
+                    <div className="p-3 bg-blue-500/10 border border-blue-400/20 rounded-2xl text-xs text-blue-200 flex items-center gap-2">
+                      <Shield size={16} className="text-blue-400 shrink-0" />
+                      <span>Direct in-app chat with 100% verified owners.</span>
+                    </div>
+                  </div>
                 </div>
               </motion.div>
             )}
 
-            {/* ── STAGE 3: ZERO COMMISSION & POST AD CALL TO ACTION (70% - 100% Scroll) ── */}
+            {/* ── STAGE 3: ZERO COMMISSION & POST AD CTA (70% - 100% Scroll) ── */}
             {activeStage === 3 && (
               <motion.div
                 key="stage-3"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.4 }}
-                className="max-w-2xl mx-auto p-6 sm:p-8 bg-slate-950/85 backdrop-blur-2xl border border-emerald-500/30 rounded-3xl shadow-2xl space-y-5"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.5 }}
+                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
               >
-                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-300">
-                  <Shield size={14} className="text-emerald-400" />
-                  0% Commission • Safe & Direct Trading
+                {/* Left Side: Post Ad Action */}
+                <div className="lg:col-span-5 text-left space-y-4 pointer-events-auto">
+                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-300">
+                    <Shield size={14} className="text-emerald-400" />
+                    0% Commission • Safe & Direct
+                  </div>
+
+                  <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-md">
+                    Start Trading Today on All In One
+                  </h2>
+
+                  <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed drop-shadow-sm">
+                    Post your free ad in under 60 seconds and connect with verified buyers in your city.
+                  </p>
+
+                  <div className="pt-2">
+                    <Link
+                      to="/dashboard/listings/new"
+                      className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm rounded-2xl shadow-lg transition-all hover:scale-105 inline-flex items-center gap-2"
+                    >
+                      <Flame size={16} />
+                      Post Free Ad Now
+                    </Link>
+                  </div>
                 </div>
 
-                <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-md">
-                  Everything You Need, All In One Marketplace
-                </h2>
+                {/* Center Column: Intentionally Clean / Empty for 3D Product Visual */}
+                <div className="lg:col-span-2 hidden lg:block pointer-events-none" />
 
-                <p className="text-slate-200 text-sm sm:text-base leading-relaxed">
-                  Post your classified ad in 60 seconds and start receiving instant buyer offers & chat messages.
-                </p>
+                {/* Right Side: Features & Browse All */}
+                <div className="lg:col-span-5 pointer-events-auto">
+                  <div className="p-5 sm:p-6 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-4">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Why All In One?</h3>
 
-                <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-                  <Link
-                    to="/dashboard/listings/new"
-                    className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm rounded-2xl shadow-lg transition-all hover:scale-105 text-center flex items-center justify-center gap-2"
-                  >
-                    <Flame size={16} />
-                    Post Free Ad Now
-                  </Link>
-                  <Link
-                    to="/listings"
-                    className="px-6 py-3.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-sm rounded-2xl transition-all hover:scale-105 text-center flex items-center justify-center gap-2"
-                  >
-                    Browse All 50,000+ Ads
-                  </Link>
+                    <ul className="space-y-2.5 text-xs text-slate-200">
+                      <li className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</span>
+                        <span>Zero hidden commission or transaction fees</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</span>
+                        <span>Instant WhatsApp & In-App Chat</span>
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</span>
+                        <span>Verified badges & spam protection</span>
+                      </li>
+                    </ul>
+
+                    <Link
+                      to="/listings"
+                      className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs rounded-2xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 text-center"
+                    >
+                      Browse All 50,000+ Listings →
+                    </Link>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -531,7 +620,7 @@ const HomePage: React.FC = () => {
           </div>
 
           {/* Sticky Bottom Scroll Step Dots Indicator */}
-          <div className="absolute bottom-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-950/75 backdrop-blur-xl border border-white/20 shadow-xl">
+          <div className="absolute bottom-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 shadow-xl pointer-events-auto">
             <span className="text-[11px] font-semibold text-slate-300 mr-1">3D Story</span>
             {[1, 2, 3].map(step => (
               <button
