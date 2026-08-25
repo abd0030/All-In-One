@@ -303,7 +303,7 @@ export const HelpCenterPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400">Helpline / WhatsApp</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">+92 300 123 4567</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">+92 3197784575</p>
                   </div>
                 </div>
 
@@ -313,7 +313,7 @@ export const HelpCenterPage: React.FC = () => {
                   </div>
                   <div>
                     <p className="text-xs text-slate-400">Email Address</p>
-                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">support@bazaar.pk</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-slate-100">classifiedallinon@gmail.com</p>
                   </div>
                 </div>
               </div>
