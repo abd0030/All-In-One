@@ -227,44 +227,9 @@ const HomePage: React.FC = () => {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingListings, setLoadingListings] = useState<Record<string, boolean>>({});
 
-  // Hero Scroll Animation Tracking (50 Frames Storyboard)
+  // Hero Section Ref & Stage
   const heroRef = React.useRef<HTMLDivElement>(null);
-  const [scrollProgress, setScrollProgress] = useState<number>(0);
   const [activeStage, setActiveStage] = useState<number>(1);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!heroRef.current) return;
-      const rect = heroRef.current.getBoundingClientRect();
-      const clientHeight = window.innerHeight || document.documentElement.clientHeight;
-      const scrollableDist = heroRef.current.scrollHeight - clientHeight;
-      if (scrollableDist <= 0) return;
-
-      const progress = Math.min(Math.max(-rect.top / scrollableDist, 0), 1);
-      setScrollProgress(progress);
-
-      if (progress < 0.35) {
-        setActiveStage(1);
-      } else if (progress < 0.70) {
-        setActiveStage(2);
-      } else {
-        setActiveStage(3);
-      }
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    window.addEventListener('touchmove', handleScroll, { passive: true });
-    window.addEventListener('resize', handleScroll, { passive: true });
-    window.addEventListener('orientationchange', handleScroll, { passive: true });
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-      window.removeEventListener('touchmove', handleScroll);
-      window.removeEventListener('resize', handleScroll);
-      window.removeEventListener('orientationchange', handleScroll);
-    };
-  }, []);
 
   useEffect(() => {
     if (!loading && user) {
@@ -356,7 +321,7 @@ const HomePage: React.FC = () => {
         <div className="sticky top-0 h-screen h-[100dvh] w-full flex items-center justify-center overflow-hidden">
           
           {/* Background Canvas Frame Sequence */}
-          <ScrollHeroCanvas progress={scrollProgress} />
+          <ScrollHeroCanvas containerRef={heroRef} onStageChange={setActiveStage} />
           
           {/* Subtle Dynamic Ambient Lighting & Contrast Overlays (Clean center) */}
           <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 pointer-events-none" />

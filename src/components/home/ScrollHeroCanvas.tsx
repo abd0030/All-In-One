@@ -5,21 +5,21 @@ import { useTheme } from '../../contexts/ThemeContext';
 const TOTAL_FRAMES = 212;
 
 interface ScrollHeroCanvasProps {
-  progress?: number; // 0 to 1 progress from parent, optional
-  onFrameChange?: (frame: number, progress: number) => void;
+  containerRef?: React.RefObject<HTMLElement>;
+  onStageChange?: (stage: number) => void;
 }
 
 export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
-  progress: externalProgress,
-  onFrameChange,
+  containerRef,
+  onStageChange,
 }) => {
   const { theme } = useTheme();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   
-  // Cache for both light and dark image arrays
-  const imagesCacheRef = useRef<{ light: HTMLImageElement[]; dark: HTMLImageElement[] }>({
-    light: [],
-    dark: [],
+  // Image cache per theme
+  const imagesCacheRef = useRef<{ light: (HTMLImageElement | null)[]; dark: (HTMLImageElement | null)[] }>({
+    light: new Array(TOTAL_FRAMES).fill(null),
+    dark: new Array(TOTAL_FRAMES).fill(null),
   });
   const loadedMapRef = useRef<{ light: boolean[]; dark: boolean[] }>({
     light: new Array(TOTAL_FRAMES).fill(false),
@@ -30,75 +30,19 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
   const targetFrameRef = useRef<number>(0);
   const animFrameIdRef = useRef<number | null>(null);
   const autoPlayTimerRef = useRef<number | null>(null);
-  const lastDrawnFloatRef = useRef<number>(-1);
+  const lastDrawnFrameRef = useRef<number>(-1);
   const activeThemeRef = useRef<'light' | 'dark'>(theme);
+  const isAutoPlayingRef = useRef<boolean>(false);
+  const lastReportedStageRef = useRef<number>(1);
 
   const [isAutoPlaying, setIsAutoPlaying] = useState<boolean>(false);
   const [activeFrameDisplay, setActiveFrameDisplay] = useState<number>(1);
-  const [, setForceUpdate] = useState<number>(0);
 
-  // Keep activeThemeRef synced
-  useEffect(() => {
-    activeThemeRef.current = theme;
-    // Re-render current frame immediately on theme change
-    lastDrawnFloatRef.current = -1;
-    renderSubFrame(currentFrameRef.current);
-  }, [theme]);
-
-  // 1. Preload 212 frames for specified theme
-  const loadThemeFrames = useCallback((t: 'light' | 'dark') => {
-    if (imagesCacheRef.current[t].length === TOTAL_FRAMES) return;
-
-    const loadedImages: HTMLImageElement[] = [];
-    const loadedMap = new Array(TOTAL_FRAMES).fill(false);
-
-    for (let i = 1; i <= TOTAL_FRAMES; i++) {
-      const img = new Image();
-      const frameNum = String(i).padStart(3, '0');
-      img.src = `/frames/${t}/ezgif-frame-${frameNum}.jpg`;
-      img.loading = 'eager';
-
-      const markLoaded = () => {
-        loadedMap[i - 1] = true;
-        if (i === 1 && activeThemeRef.current === t) {
-          renderSubFrame(currentFrameRef.current);
-        }
-      };
-
-      img.onload = () => {
-        if ('decode' in img && typeof img.decode === 'function') {
-          img.decode().then(markLoaded).catch(markLoaded);
-        } else {
-          markLoaded();
-        }
-      };
-      img.onerror = () => {
-        loadedMap[i - 1] = false;
-      };
-
-      loadedImages.push(img);
-    }
-
-    imagesCacheRef.current[t] = loadedImages;
-    loadedMapRef.current[t] = loadedMap;
-  }, []);
-
-  // Preload current theme immediately, and then preload the opposite theme
-  useEffect(() => {
-    loadThemeFrames(theme);
-
-    // After a brief delay, preload the alternate theme in background for instant switching
-    const timer = setTimeout(() => {
-      loadThemeFrames(theme === 'light' ? 'dark' : 'light');
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [theme, loadThemeFrames]);
-
-  // Helper: Find nearest loaded frame index if requested frame is still buffering
+  // Helper: Find nearest loaded frame
   const getNearestLoadedIndex = useCallback((targetIdx: number, t: 'light' | 'dark'): number => {
     const map = loadedMapRef.current[t];
-    if (!map || map[targetIdx]) return targetIdx;
+    if (!map) return 0;
+    if (map[targetIdx]) return targetIdx;
 
     for (let offset = 1; offset < TOTAL_FRAMES; offset++) {
       if (targetIdx - offset >= 0 && map[targetIdx - offset]) {
@@ -111,17 +55,33 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     return 0;
   }, []);
 
-  // Helper: Draw single image with aspect ratio cover math
-  const drawImageCover = (
-    ctx: CanvasRenderingContext2D,
-    img: HTMLImageElement,
-    width: number,
-    height: number,
-    alpha: number = 1
-  ) => {
+  // Fast, Hardware-Accelerated Single Draw
+  const drawFrame = useCallback((frameIdx: number, t?: 'light' | 'dark') => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d', { alpha: true });
+    if (!ctx) return;
+
+    const activeT = t || activeThemeRef.current;
+    const safeIdx = getNearestLoadedIndex(frameIdx, activeT);
+    const img = imagesCacheRef.current[activeT][safeIdx];
     if (!img || !img.complete || img.naturalWidth === 0) return;
 
-    ctx.globalAlpha = alpha;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+
+    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+      canvas.width = width * dpr;
+      canvas.height = height * dpr;
+    }
+
+    ctx.save();
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+
+    // Calculate aspect ratio cover math
     const imgRatio = img.naturalWidth / img.naturalHeight;
     const canvasRatio = width / height;
 
@@ -139,105 +99,136 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     }
 
     ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
-  };
-
-  // 2. Liquid-Smooth Dual-Frame Cross-Fade Render (Sub-frame Alpha Blending)
-  const renderSubFrame = useCallback((frameFloat: number) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d', { alpha: true });
-    if (!ctx) return;
-
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const width = canvas.clientWidth;
-    const height = canvas.clientHeight;
-
-    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
-      canvas.width = width * dpr;
-      canvas.height = height * dpr;
-    }
-
-    const currentTheme = activeThemeRef.current;
-    const imagesList = imagesCacheRef.current[currentTheme];
-    if (!imagesList || imagesList.length === 0) return;
-
-    const clampedFloat = Math.max(0, Math.min(frameFloat, TOTAL_FRAMES - 1));
-    const baseIndex = Math.floor(clampedFloat);
-    const nextIndex = Math.min(baseIndex + 1, TOTAL_FRAMES - 1);
-    const blendFactor = clampedFloat - baseIndex; // Sub-frame fraction (0.0 to 1.0)
-
-    const safeBaseIdx = getNearestLoadedIndex(baseIndex, currentTheme);
-    const safeNextIdx = getNearestLoadedIndex(nextIndex, currentTheme);
-
-    const baseImg = imagesList[safeBaseIdx];
-    const nextImg = imagesList[safeNextIdx];
-
-    ctx.save();
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, height);
-
-    // Draw primary base frame
-    if (baseImg) {
-      drawImageCover(ctx, baseImg, width, height, 1);
-    }
-
-    // Blend next frame with sub-frame alpha for liquid-smooth motion interpolation
-    if (blendFactor > 0.01 && safeBaseIdx !== safeNextIdx && nextImg) {
-      drawImageCover(ctx, nextImg, width, height, blendFactor);
-    }
-
     ctx.restore();
+    lastDrawnFrameRef.current = frameIdx;
   }, [getNearestLoadedIndex]);
 
-  // 3. Auto-play loop (slower, cinematic pace through 212 frames)
-  useEffect(() => {
-    if (isAutoPlaying) {
-      autoPlayTimerRef.current = window.setInterval(() => {
-        targetFrameRef.current = (targetFrameRef.current + 1) % TOTAL_FRAMES;
-      }, 35); // ~28-30 fps for 212 frames
-    } else {
-      if (autoPlayTimerRef.current) {
-        clearInterval(autoPlayTimerRef.current);
-        autoPlayTimerRef.current = null;
+  // 1. Efficient Chunked Preloader (Fast initial frame + smooth background batching)
+  const loadSingleImage = useCallback((index: number, t: 'light' | 'dark'): Promise<HTMLImageElement> => {
+    return new Promise((resolve) => {
+      const existing = imagesCacheRef.current[t][index];
+      if (existing && loadedMapRef.current[t][index]) {
+        return resolve(existing);
       }
-    }
-    return () => {
-      if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
-    };
-  }, [isAutoPlaying]);
 
-  // 4. External scroll progress sync
+      const img = new Image();
+      const frameNum = String(index + 1).padStart(3, '0');
+      img.src = `/frames/${t}/ezgif-frame-${frameNum}.jpg`;
+
+      img.onload = () => {
+        imagesCacheRef.current[t][index] = img;
+        loadedMapRef.current[t][index] = true;
+        if (index === 0 && activeThemeRef.current === t && lastDrawnFrameRef.current === -1) {
+          drawFrame(0, t);
+        }
+        resolve(img);
+      };
+
+      img.onerror = () => {
+        loadedMapRef.current[t][index] = false;
+        resolve(img);
+      };
+    });
+  }, [drawFrame]);
+
+  // Preload frames in chunks so network doesn't choke
+  const preloadAllFramesForTheme = useCallback(async (t: 'light' | 'dark') => {
+    // 1. Immediately load frame 0 and first 15 frames
+    await loadSingleImage(0, t);
+    const initialBatch = [];
+    for (let i = 1; i < Math.min(15, TOTAL_FRAMES); i++) {
+      initialBatch.push(loadSingleImage(i, t));
+    }
+    await Promise.all(initialBatch);
+
+    // 2. Load the rest in small chunks of 12
+    const CHUNK_SIZE = 12;
+    for (let i = 15; i < TOTAL_FRAMES; i += CHUNK_SIZE) {
+      const chunk = [];
+      for (let j = i; j < Math.min(i + CHUNK_SIZE, TOTAL_FRAMES); j++) {
+        chunk.push(loadSingleImage(j, t));
+      }
+      await Promise.all(chunk);
+    }
+  }, [loadSingleImage]);
+
+  // Keep theme synced & re-draw immediately
   useEffect(() => {
-    if (isAutoPlaying) return;
+    activeThemeRef.current = theme;
+    preloadAllFramesForTheme(theme);
+    lastDrawnFrameRef.current = -1;
+    drawFrame(Math.round(currentFrameRef.current), theme);
+  }, [theme, preloadAllFramesForTheme, drawFrame]);
 
-    if (externalProgress !== undefined) {
-      const targetVal = Math.min(
-        Math.max(externalProgress * (TOTAL_FRAMES - 1), 0),
-        TOTAL_FRAMES - 1
-      );
-      targetFrameRef.current = targetVal;
-    }
-  }, [externalProgress, isAutoPlaying]);
+  // Preload opposite theme in background with gentle delay
+  useEffect(() => {
+    const opp = theme === 'light' ? 'dark' : 'light';
+    const timer = setTimeout(() => {
+      preloadAllFramesForTheme(opp);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [theme, preloadAllFramesForTheme]);
 
-  // 5. Physics-based Smooth Lerp Animation Loop
+  // 3. Scroll tracking direct in RAF loop (Zero React Re-renders on parent!)
+  useEffect(() => {
+    const handleScroll = () => {
+      if (isAutoPlayingRef.current) return;
+
+      const container = containerRef?.current || canvasRef.current?.closest('section');
+      if (!container) return;
+
+      const rect = container.getBoundingClientRect();
+      const clientH = window.innerHeight || document.documentElement.clientHeight;
+      const scrollable = container.scrollHeight - clientH;
+      if (scrollable <= 0) return;
+
+      const progress = Math.min(Math.max(-rect.top / scrollable, 0), 1);
+      targetFrameRef.current = progress * (TOTAL_FRAMES - 1);
+
+      // Report stage only when stage changes
+      let stage = 1;
+      if (progress >= 0.70) {
+        stage = 3;
+      } else if (progress >= 0.35) {
+        stage = 2;
+      }
+
+      if (stage !== lastReportedStageRef.current) {
+        lastReportedStageRef.current = stage;
+        onStageChange?.(stage);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('touchmove', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll, { passive: true });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('touchmove', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [containerRef, onStageChange]);
+
+  // 4. Physics-based Smooth Animation Loop (60fps lock with ultra-smooth lerp)
   useEffect(() => {
     const loop = () => {
       const diff = targetFrameRef.current - currentFrameRef.current;
-      if (Math.abs(diff) > 0.002) {
-        currentFrameRef.current += diff * 0.085; // Silky smooth damping
+      if (Math.abs(diff) > 0.01) {
+        currentFrameRef.current += diff * 0.12; // Snappy & silky response
       } else {
         currentFrameRef.current = targetFrameRef.current;
       }
 
-      const curVal = currentFrameRef.current;
-      if (Math.abs(curVal - lastDrawnFloatRef.current) > 0.005) {
-        renderSubFrame(curVal);
-        lastDrawnFloatRef.current = curVal;
+      const frameToDraw = Math.min(
+        Math.max(Math.round(currentFrameRef.current), 0),
+        TOTAL_FRAMES - 1
+      );
 
-        const displayFrame = Math.min(Math.max(Math.round(curVal) + 1, 1), TOTAL_FRAMES);
-        setActiveFrameDisplay(displayFrame);
-        onFrameChange?.(displayFrame, curVal / (TOTAL_FRAMES - 1));
+      if (frameToDraw !== lastDrawnFrameRef.current) {
+        drawFrame(frameToDraw);
+        setActiveFrameDisplay(frameToDraw + 1);
       }
 
       animFrameIdRef.current = requestAnimationFrame(loop);
@@ -248,10 +239,34 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
     return () => {
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     };
-  }, [renderSubFrame, onFrameChange]);
+  }, [drawFrame]);
+
+  // 5. Auto-play Toggle
+  const toggleAutoPlay = () => {
+    const next = !isAutoPlaying;
+    setIsAutoPlaying(next);
+    isAutoPlayingRef.current = next;
+
+    if (next) {
+      autoPlayTimerRef.current = window.setInterval(() => {
+        targetFrameRef.current = (targetFrameRef.current + 1) % TOTAL_FRAMES;
+      }, 33); // Smooth 30fps auto-play
+    } else {
+      if (autoPlayTimerRef.current) {
+        clearInterval(autoPlayTimerRef.current);
+        autoPlayTimerRef.current = null;
+      }
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (autoPlayTimerRef.current) clearInterval(autoPlayTimerRef.current);
+    };
+  }, []);
 
   return (
-    <div className="absolute inset-0 w-full h-full">
+    <div className="absolute inset-0 w-full h-full pointer-events-none">
       {/* HTML5 Canvas */}
       <canvas
         ref={canvasRef}
@@ -262,8 +277,8 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
       <div className="absolute top-4 right-4 z-30 flex items-center gap-2 pointer-events-auto">
         <button
           type="button"
-          onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-          className="px-3.5 py-1.5 rounded-full bg-slate-900/80 dark:bg-slate-950/80 hover:bg-slate-800 dark:hover:bg-slate-900 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
+          onClick={toggleAutoPlay}
+          className="px-3.5 py-1.5 rounded-full bg-slate-900/85 dark:bg-slate-950/85 hover:bg-slate-800 dark:hover:bg-slate-900 backdrop-blur-xl border border-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition-all hover:scale-105 active:scale-95 shadow-xl"
           title={isAutoPlaying ? 'Pause Auto Animation' : 'Auto Play 3D Animation'}
         >
           {isAutoPlaying ? (
@@ -280,7 +295,7 @@ export const ScrollHeroCanvas: React.FC<ScrollHeroCanvasProps> = ({
         </button>
 
         {/* Frame Progress & Theme Tag */}
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/70 dark:bg-slate-950/70 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-slate-200 shadow-xl">
+        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-900/75 dark:bg-slate-950/75 backdrop-blur-xl border border-white/15 text-[11px] font-mono text-slate-200 shadow-xl">
           {theme === 'dark' ? <Moon size={11} className="text-indigo-400" /> : <Sun size={11} className="text-amber-400" />}
           <span>{String(activeFrameDisplay).padStart(3, '0')} / {TOTAL_FRAMES}</span>
         </div>
