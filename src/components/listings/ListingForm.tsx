@@ -2141,7 +2141,7 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
 
   // User Details / Contact Information states
   const [contactName, setContactName] = useState('');
-  const [showPhone, setShowPhone] = useState(true);
+  const [whatsappNumber, setWhatsappNumber] = useState('');
 
   const handleUnifiedLocate = async () => {
     setFetchingGeo(true);
@@ -2697,14 +2697,19 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
       } else if (listing.seller?.full_name) {
         setContactName(listing.seller.full_name);
       }
-      if (listing.attributes?.show_phone === 'false') {
-        setShowPhone(false);
-      } else {
-        setShowPhone(true);
+      if (listing.attributes?.whatsapp_number) {
+        setWhatsappNumber(listing.attributes.whatsapp_number);
+      } else if (listing.attributes?.whatsapp) {
+        setWhatsappNumber(listing.attributes.whatsapp);
+      } else if (listing.seller?.phone) {
+        setWhatsappNumber(listing.seller.phone);
       }
     } else if (user) {
       if (!contactName) {
         setContactName(user.full_name || '');
+      }
+      if (!whatsappNumber && user.phone) {
+        setWhatsappNumber(user.phone || '');
       }
     }
   }, [user, listing]);
@@ -2787,7 +2792,7 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
                   if (draft.subSubSubCat) setSubSubSubCat(draft.subSubSubCat);
                   if (draft.dynamicAttrs) setDynamicAttrs(draft.dynamicAttrs);
                   if (draft.contactName) setContactName(draft.contactName);
-                  if (draft.showPhone !== undefined) setShowPhone(draft.showPhone);
+                  if (draft.whatsappNumber) setWhatsappNumber(draft.whatsappNumber);
                   
                   // Restore exact step/page
                   if (draft.currentStep !== undefined) {
@@ -2873,13 +2878,13 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
         subSubSubCat,
         dynamicAttrs,
         contactName,
-        showPhone,
+        whatsappNumber,
         currentStep,
         base64Images
       }));
     }, 5000);
     return () => clearInterval(interval);
-  }, [watchTitle, watchDescription, watchPrice, watchCategory, watch('subcategory_id'), watch('sub_subcategory_id'), watch('condition'), watch('city'), watch('location'), watch('is_negotiable'), mainCat, subCat, subSubCat, subSubSubCat, dynamicAttrs, contactName, showPhone, currentStep, imageFiles, listing]);
+  }, [watchTitle, watchDescription, watchPrice, watchCategory, watch('subcategory_id'), watch('sub_subcategory_id'), watch('condition'), watch('city'), watch('location'), watch('is_negotiable'), mainCat, subCat, subSubCat, subSubSubCat, dynamicAttrs, contactName, whatsappNumber, currentStep, imageFiles, listing]);
 
   // Helper arrays
   const mainCategories = useMemo(() => allCategories.filter(c => !c.parent_id), [allCategories]);
@@ -3568,6 +3573,10 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
         toast.error('Name is required');
         return;
       }
+      if (!whatsappNumber.trim()) {
+        toast.error('Add WhatsApp Number is required');
+        return;
+      }
       // Trigger AI Spam Analysis
       await handleSpamAnalysis();
     }
@@ -3644,7 +3653,8 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
           subcategory_name: subCat?.name || undefined,
           sub_subcategory_name: subSubCat?.name || undefined,
           contact_name: contactName,
-          show_phone: showPhone ? 'true' : 'false',
+          whatsapp_number: whatsappNumber.trim(),
+          whatsapp: whatsappNumber.trim(),
           suspension_reason: undefined,
           rejection_reason: undefined,
           changes_reason: undefined
@@ -7470,7 +7480,18 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
 
             {/* Contact Information Card */}
             <div className="card p-6 space-y-5">
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100 pb-2 border-b border-slate-100 dark:border-slate-700">Contact Information</h2>
+              <div className="flex items-center gap-3 pb-3 border-b border-slate-100 dark:border-slate-700">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+                  <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                    <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766.001-3.187-2.575-5.77-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.075-1.748-.372-1.378-.553-2.28-1.93-2.35-2.022-.069-.092-.56-.745-.56-1.42 0-.676.353-1.009.479-1.147.126-.138.273-.173.364-.173.091 0 .182.001.261.005.083.004.195-.031.305.234.115.277.391.954.425 1.023.034.069.057.15.011.241-.045.092-.068.149-.137.23-.069.08-.145.179-.207.24-.069.069-.141.144-.06.284.08.139.359.593.771.96.531.474.978.621 1.117.69.138.069.219.058.3-.035.08-.092.345-.402.437-.54.092-.138.184-.115.31-.069.127.046.805.38.943.449.138.069.23.103.264.161.034.057.034.333-.11.738z"/>
+                    <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2.344 21.656a1 1 0 001.218 1.218l4.488-1.094A9.957 9.957 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18a7.95 7.95 0 01-4.288-1.243l-.307-.184-2.585.63.642-2.528-.198-.322A7.954 7.954 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"/>
+                  </svg>
+                </div>
+                <div>
+                  <h2 className="text-xl font-bold text-slate-800 dark:text-slate-100">Contact Information</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Buyers will connect with you directly through WhatsApp</p>
+                </div>
+              </div>
               
               <div className="space-y-4">
                 {/* Editable Name Field */}
@@ -7485,31 +7506,19 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
                   </div>
                 </div>
 
-                {/* Seller Phone Number display */}
-                <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-slate-700/50">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Your phone number</span>
-                  <span className="text-sm font-medium text-slate-800 dark:text-slate-200 font-mono">
-                    {user?.phone || 'No phone number linked'}
-                  </span>
-                </div>
-
-                {/* Show phone number in ads toggle */}
-                <div className="flex items-center justify-between py-3 border-t border-slate-100 dark:border-slate-700/50">
-                  <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">Show my phone number in ads</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowPhone(!showPhone)}
-                    disabled={!user?.phone}
-                    className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                      showPhone && user?.phone ? 'bg-primary-600' : 'bg-slate-200 dark:bg-slate-700'
-                    } ${!user?.phone ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <span
-                      className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                        showPhone && user?.phone ? 'translate-x-5' : 'translate-x-0'
-                      }`}
+                {/* Add WhatsApp Number Field */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-100 dark:border-slate-700/50">
+                  <div>
+                    <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">Add WhatsApp Number *</label>
+                    <p className="text-[11px] text-slate-500 mt-0.5">Enter your active WhatsApp number for direct buyer chats</p>
+                  </div>
+                  <div className="w-full sm:max-w-md relative">
+                    <Input
+                      placeholder="e.g. 0300 1234567 or +92 300 1234567"
+                      value={whatsappNumber}
+                      onChange={(e) => setWhatsappNumber(e.target.value)}
                     />
-                  </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -7599,16 +7608,16 @@ const ListingForm: React.FC<ListingFormProps> = ({ listing, onSuccess }) => {
 
             {/* Contact Details Preview */}
             <div className="card p-5 bg-slate-50 dark:bg-slate-800/40 border border-slate-150 dark:border-slate-800 space-y-3 max-w-md mx-auto">
-              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">Contact Details Preview</h4>
+              <h4 className="font-bold text-sm text-slate-800 dark:text-slate-200">WhatsApp Contact Details</h4>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <span className="text-slate-400">Contact Name:</span>
                   <p className="font-semibold text-slate-700 dark:text-slate-300">{contactName}</p>
                 </div>
                 <div>
-                  <span className="text-slate-400">Phone Visibility:</span>
-                  <p className={`font-semibold ${showPhone && user?.phone ? 'text-green-600 dark:text-green-400' : 'text-slate-500'}`}>
-                    {showPhone && user?.phone ? `Visible (${user.phone})` : 'Hidden / Not shared'}
+                  <span className="text-slate-400">WhatsApp Number:</span>
+                  <p className="font-semibold text-emerald-600 dark:text-emerald-400 font-mono">
+                    {whatsappNumber || 'Not provided'}
                   </p>
                 </div>
               </div>

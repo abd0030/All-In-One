@@ -410,3 +410,18 @@ export const playNotificationSound = () => {
     // Silently handle autoplay restrictions
   }
 };
+
+export const formatWhatsAppUrl = (phoneOrWhatsapp: string, listingTitle?: string): string => {
+  if (!phoneOrWhatsapp) return '';
+  let clean = phoneOrWhatsapp.replace(/\D/g, '');
+  if (clean.startsWith('0')) {
+    clean = '92' + clean.slice(1);
+  } else if (!clean.startsWith('92') && clean.length === 10) {
+    clean = '92' + clean;
+  }
+  const message = encodeURIComponent(
+    `Assalam-o-Alaikum, I am interested in your listing "${listingTitle || 'item'}" on All in One Classified.`
+  );
+  return `https://wa.me/${clean}?text=${message}`;
+};
+

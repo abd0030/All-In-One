@@ -31,8 +31,8 @@ import Icon from '../components/ui/Icon';
 import { Skeleton } from '../components/ui';
 import { userHasAnyRole } from '../utils/helpers';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { supabase } from '../lib/supabase';
-import { ScrollHeroCanvas } from '../components/home/ScrollHeroCanvas';
 
 const getCategoryMeta = (name: string, index: number) => {
   const n = name.toLowerCase();
@@ -227,9 +227,7 @@ const HomePage: React.FC = () => {
   const [loadingCategories, setLoadingCategories] = useState(true);
   const [loadingListings, setLoadingListings] = useState<Record<string, boolean>>({});
 
-  // Hero Section Ref & Stage
-  const heroRef = React.useRef<HTMLDivElement>(null);
-  const [activeStage, setActiveStage] = useState<number>(1);
+  const { theme } = useTheme();
 
   useEffect(() => {
     if (!loading && user) {
@@ -314,296 +312,116 @@ const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950 transition-colors duration-200">
-      {/* ── 1. IMMERSIVE STICKY-SCROLL HERO SECTION (212 FRAMES LIGHT/DARK 3D STORY SEQUENCE) ── */}
-      <section ref={heroRef} className="relative h-[400vh] bg-slate-950 text-white">
-        
-        {/* Sticky Fullscreen Canvas Viewport */}
-        <div className="sticky top-0 h-screen h-[100dvh] w-full flex items-center justify-center overflow-hidden">
-          
-          {/* Background Canvas Frame Sequence */}
-          <ScrollHeroCanvas containerRef={heroRef} onStageChange={setActiveStage} />
-          
-          {/* Subtle Dynamic Ambient Lighting & Contrast Overlays (Clean center) */}
-          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/40 via-transparent to-slate-950/80 pointer-events-none" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_30%,rgba(15,23,42,0.6)_100%)] pointer-events-none" />
+      {/* ── 1. LUXURIOUS HERO SECTION WITH THEME-ADAPTIVE GIF BACKGROUND ── */}
+      <section className="relative min-h-[580px] sm:min-h-[640px] lg:min-h-[700px] py-16 sm:py-24 flex items-center justify-center overflow-hidden bg-slate-950 text-white">
+        {/* Theme-Adaptive Background GIF */}
+        <div className="absolute inset-0 w-full h-full overflow-hidden select-none pointer-events-none">
+          <img
+            key={theme}
+            src={theme === 'dark' ? '/hero/hero-dark.gif' : '/hero/hero-light.gif'}
+            alt="Hero 3D Background"
+            className="w-full h-full object-cover object-center opacity-80 sm:opacity-90 transition-opacity duration-700 ease-in-out"
+            loading="eager"
+          />
+          {/* Subtle Ambient Vignette & Contrast Overlays */}
+          <div className="absolute inset-0 bg-gradient-to-b from-slate-950/70 via-slate-950/40 to-slate-950/85 pointer-events-none" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_20%,rgba(15,23,42,0.7)_100%)] pointer-events-none" />
+        </div>
 
-          {/* Side-Aligned Dynamic Stage Content (Center is kept clean and open for 3D visuals) */}
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 w-full z-10 pointer-events-none">
-            
-            {/* ── STAGE 1: MAIN SEARCH & HERO (CENTERED) ── */}
-            {activeStage === 1 && (
-              <motion.div
-                key="stage-1"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.4 }}
-                className="max-w-4xl mx-auto text-center space-y-4 pointer-events-auto"
-              >
-                {/* Top Pill Tag */}
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 text-xs font-bold text-white mb-2 shadow-xl">
-                  <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                  Pakistan's #1 Verified Marketplace
-                  <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
-                </div>
+        {/* Hero Content Container */}
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 w-full z-10">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            className="max-w-4xl mx-auto text-center space-y-5 sm:space-y-6"
+          >
+            {/* Top Verified Badge */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.1, duration: 0.4 }}
+              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 text-xs font-bold text-white shadow-xl"
+            >
+              <span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+              Pakistan's #1 Verified Marketplace
+              <Star size={13} className="text-amber-400 fill-amber-400 ml-0.5" />
+            </motion.div>
 
-                {/* Headline with High-Contrast Text Shadows */}
-                <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight sm:leading-none drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]">
-                  Buy, Sell & Discover
-                  <br />
-                  <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
-                    Everything Across Pakistan
-                  </span>
-                </h1>
+            {/* Headline with High-Contrast Text Shadows */}
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-3 sm:mb-4 leading-tight sm:leading-none drop-shadow-[0_4px_20px_rgba(0,0,0,0.9)]">
+              Buy, Sell & Discover
+              <br />
+              <span className="bg-gradient-to-r from-blue-300 via-indigo-200 to-amber-300 bg-clip-text text-transparent drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
+                Everything Across Pakistan
+              </span>
+            </h1>
 
-                <p className="text-slate-100 text-sm sm:text-base lg:text-lg mb-6 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
-                  Connect directly with verified sellers in your city. Safe chat, verified listings, and 0% commission.
-                </p>
+            {/* Subtitle */}
+            <p className="text-slate-100 text-sm sm:text-base lg:text-lg mb-6 max-w-2xl mx-auto font-medium leading-relaxed drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)]">
+              Connect directly with verified sellers in your city. Direct WhatsApp chat, verified listings, and 0% commission.
+            </p>
 
-                {/* Glassmorphic Unified Horizontal Search Bar */}
-                <form
-                  onSubmit={handleSearch}
-                  className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/40 dark:border-slate-700/80 rounded-3xl shadow-2xl shadow-slate-950/50 max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-4"
+            {/* Glassmorphic Unified Horizontal Search Bar */}
+            <form
+              onSubmit={handleSearch}
+              className="p-2 sm:p-2.5 bg-white/95 dark:bg-slate-900/90 backdrop-blur-2xl border border-white/40 dark:border-slate-700/80 rounded-3xl shadow-2xl shadow-slate-950/50 max-w-3xl mx-auto flex flex-col sm:flex-row gap-2 mb-4"
+            >
+              <div className="flex-1 relative flex items-center">
+                <Search size={20} className="absolute left-4 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  placeholder="Find Mobiles, Cars, Bikes, Laptops, Houses..."
+                  className="w-full pl-12 pr-4 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all"
+                />
+              </div>
+
+              <div className="sm:w-48 relative flex items-center">
+                <MapPin size={18} className="absolute left-3.5 text-slate-400 pointer-events-none" />
+                <select
+                  value={selectedCity}
+                  onChange={e => setSelectedCity(e.target.value)}
+                  className="w-full pl-10 pr-8 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all appearance-none cursor-pointer"
                 >
-                  <div className="flex-1 relative flex items-center">
-                    <Search size={20} className="absolute left-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Find Mobiles, Cars, Bikes, Laptops, Houses..."
-                      className="w-full pl-12 pr-4 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-100 placeholder-slate-400 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all"
-                    />
-                  </div>
-
-                  <div className="sm:w-48 relative flex items-center">
-                    <MapPin size={18} className="absolute left-3.5 text-slate-400 pointer-events-none" />
-                    <select
-                      value={selectedCity}
-                      onChange={e => setSelectedCity(e.target.value)}
-                      className="w-full pl-10 pr-8 py-3.5 bg-slate-100/90 dark:bg-slate-800/90 border border-slate-200/80 dark:border-slate-700/60 text-slate-900 dark:text-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm font-medium transition-all appearance-none cursor-pointer"
-                    >
-                      <option value="">All Pakistan</option>
-                      {CITIES.map(c => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                    <div className="absolute right-3 pointer-events-none text-slate-400 text-xs">▼</div>
-                  </div>
-
-                  <button
-                    type="submit"
-                    className="px-8 py-3.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/30 hover:shadow-primary-600/50 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-2"
-                  >
-                    <Search size={16} />
-                    Search Ads
-                  </button>
-                </form>
-
-                {/* Quick Category Suggestion Pills (Centered) */}
-                <div className="flex flex-wrap justify-center gap-2">
-                  {quickPills.map(item => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => {
-                        setSearchQuery(item.query);
-                        navigate(`/listings?q=${encodeURIComponent(item.query)}`);
-                      }}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-950/75 hover:bg-slate-900/95 backdrop-blur-xl border border-white/25 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105"
-                    >
-                      <item.icon size={13} className="text-primary-400" />
-                      {item.label}
-                    </button>
+                  <option value="">All Pakistan</option>
+                  {CITIES.map(c => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
                   ))}
-                </div>
-              </motion.div>
-            )}
+                </select>
+                <div className="absolute right-3 pointer-events-none text-slate-400 text-xs">▼</div>
+              </div>
 
-            {/* ── STAGE 2: VEHICLES, TECH & REAL ESTATE (35% - 70% Scroll) ── */}
-            {activeStage === 2 && (
-              <motion.div
-                key="stage-2"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
-              >
-                {/* Left Side: Vehicle & Living Highlight */}
-                <div className="lg:col-span-5 text-left space-y-4 pointer-events-auto">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/20 border border-blue-400/30 text-xs font-bold text-blue-300">
-                    <Sparkles size={14} className="text-amber-400" />
-                    Vehicles & Real Estate
-                  </div>
-
-                  <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-md">
-                    Inspected Vehicles & Luxury Properties
-                  </h2>
-
-                  <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed drop-shadow-sm">
-                    Browse certified cars, motorcycles, houses, apartments, and plots across 30+ cities in Pakistan.
-                  </p>
-
-                  <div className="flex flex-wrap gap-2.5 pt-2">
-                    <Link
-                      to="/category/vehicles"
-                      className="px-4 py-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all hover:scale-105"
-                    >
-                      <Car size={15} className="text-amber-400" />
-                      Browse Vehicles
-                    </Link>
-                    <Link
-                      to="/category/property-for-sale"
-                      className="px-4 py-2 bg-white/15 hover:bg-white/25 border border-white/20 rounded-xl text-xs font-bold text-white flex items-center gap-2 transition-all hover:scale-105"
-                    >
-                      <HomeIcon size={15} className="text-emerald-400" />
-                      Explore Properties
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Center Column: Intentionally Clean / Empty for 3D Product Visual */}
-                <div className="lg:col-span-2 hidden lg:block pointer-events-none" />
-
-                {/* Right Side: Tech & Electronics Quick Box */}
-                <div className="lg:col-span-5 pointer-events-auto">
-                  <div className="p-5 sm:p-6 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-4">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
-                      <Tv size={16} className="text-primary-400" />
-                      Tech & Lifestyle Categories
-                    </h3>
-
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <Link
-                        to="/category/mobile-tech-products"
-                        className="p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl flex items-center gap-2.5 text-white transition-all hover:scale-105"
-                      >
-                        <Smartphone size={18} className="text-primary-400 shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold">Mobiles & Tech</p>
-                          <p className="text-[10px] text-slate-300">Phones, Laptops</p>
-                        </div>
-                      </Link>
-
-                      <Link
-                        to="/category/electronics-home-appliances"
-                        className="p-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-2xl flex items-center gap-2.5 text-white transition-all hover:scale-105"
-                      >
-                        <Tv size={18} className="text-amber-400 shrink-0" />
-                        <div>
-                          <p className="text-xs font-bold">Electronics</p>
-                          <p className="text-[10px] text-slate-300">TVs, Home Decor</p>
-                        </div>
-                      </Link>
-                    </div>
-
-                    <div className="p-3 bg-blue-500/10 border border-blue-400/20 rounded-2xl text-xs text-blue-200 flex items-center gap-2">
-                      <Shield size={16} className="text-blue-400 shrink-0" />
-                      <span>Direct in-app chat with 100% verified owners.</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-            {/* ── STAGE 3: ZERO COMMISSION & POST AD CTA (70% - 100% Scroll) ── */}
-            {activeStage === 3 && (
-              <motion.div
-                key="stage-3"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.5 }}
-                className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center"
-              >
-                {/* Left Side: Post Ad Action */}
-                <div className="lg:col-span-5 text-left space-y-4 pointer-events-auto">
-                  <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-xs font-bold text-emerald-300">
-                    <Shield size={14} className="text-emerald-400" />
-                    0% Commission • Safe & Direct
-                  </div>
-
-                  <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-snug drop-shadow-md">
-                    Start Trading Today on All In One
-                  </h2>
-
-                  <p className="text-slate-200 text-sm sm:text-base font-medium leading-relaxed drop-shadow-sm">
-                    Post your free ad in under 60 seconds and connect with verified buyers in your city.
-                  </p>
-
-                  <div className="pt-2">
-                    <Link
-                      to="/dashboard/listings/new"
-                      className="px-6 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-bold text-sm rounded-2xl shadow-lg transition-all hover:scale-105 inline-flex items-center gap-2"
-                    >
-                      <Flame size={16} />
-                      Post Free Ad Now
-                    </Link>
-                  </div>
-                </div>
-
-                {/* Center Column: Intentionally Clean / Empty for 3D Product Visual */}
-                <div className="lg:col-span-2 hidden lg:block pointer-events-none" />
-
-                {/* Right Side: Features & Browse All */}
-                <div className="lg:col-span-5 pointer-events-auto">
-                  <div className="p-5 sm:p-6 bg-slate-950/80 backdrop-blur-2xl border border-white/20 rounded-3xl shadow-2xl space-y-4">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-wider">Why All In One?</h3>
-
-                    <ul className="space-y-2.5 text-xs text-slate-200">
-                      <li className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</span>
-                        <span>Zero hidden commission or transaction fees</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</span>
-                        <span>Instant WhatsApp & In-App Chat</span>
-                      </li>
-                      <li className="flex items-center gap-2">
-                        <span className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-[10px] font-bold">✓</span>
-                        <span>Verified badges & spam protection</span>
-                      </li>
-                    </ul>
-
-                    <Link
-                      to="/listings"
-                      className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs rounded-2xl transition-all hover:scale-[1.02] flex items-center justify-center gap-2 text-center"
-                    >
-                      Browse All 50,000+ Listings →
-                    </Link>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-
-          </div>
-
-          {/* Sticky Bottom Scroll Step Dots Indicator */}
-          <div className="absolute bottom-6 z-20 flex items-center gap-2 px-4 py-2 rounded-full bg-slate-950/80 backdrop-blur-xl border border-white/20 shadow-xl pointer-events-auto">
-            <span className="text-[11px] font-semibold text-slate-300 mr-1">3D Story</span>
-            {[1, 2, 3].map(step => (
               <button
-                key={step}
-                type="button"
-                onClick={() => {
-                  if (!heroRef.current) return;
-                  const scrollableDist = heroRef.current.scrollHeight - window.innerHeight;
-                  const targetY = heroRef.current.offsetTop + (scrollableDist * (step === 1 ? 0 : step === 2 ? 0.5 : 0.9));
-                  window.scrollTo({ top: targetY, behavior: 'smooth' });
-                }}
-                className={`h-2 rounded-full transition-all duration-300 ${
-                  activeStage === step
-                    ? 'w-6 bg-gradient-to-r from-primary-400 to-amber-400'
-                    : 'w-2 bg-white/30 hover:bg-white/60'
-                }`}
-                title={`Jump to Stage ${step}`}
-              />
-            ))}
-          </div>
+                type="submit"
+                className="px-8 py-3.5 bg-gradient-to-r from-primary-600 to-indigo-600 hover:from-primary-500 hover:to-indigo-500 text-white font-bold text-sm rounded-2xl shadow-lg shadow-primary-600/30 hover:shadow-primary-600/50 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <Search size={16} />
+                Search Ads
+              </button>
+            </form>
 
+            {/* Quick Category Suggestion Pills */}
+            <div className="flex flex-wrap justify-center gap-2">
+              {quickPills.map(item => (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => {
+                    setSearchQuery(item.query);
+                    navigate(`/listings?q=${encodeURIComponent(item.query)}`);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-950/75 hover:bg-slate-900/95 backdrop-blur-xl border border-white/25 text-white hover:text-primary-300 text-xs font-semibold shadow-lg transition-all hover:scale-105 cursor-pointer"
+                >
+                  <item.icon size={13} className="text-primary-400" />
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          </motion.div>
         </div>
       </section>
 

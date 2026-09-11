@@ -386,7 +386,7 @@ YOUR CAPABILITIES & BEHAVIOR:
    - To post an ad: Click 'Post Ad' in top navigation, select Category & Subcategory, fill title, description, price (PKR), product condition (New, Used, Refurbished, Open Box), upload photos & submit.
    - To promote an ad: Go to Dashboard -> My Listings -> click '🚀 Promote'. Supported packages: Urgent Badge (PKR 500 / 7 days), Featured Ad (PKR 1200 / 15 days), Premium VIP (PKR 2500 / 30 days). Online payments are handled securely via Safepay.
    - Account verification: Go to Dashboard -> Account Verification, submit CNIC details for verified seller checkmark.
-   - Communication: Built-in text messaging, reply, delete, voice messages recording & playback, and Call Seller phone number reveal.
+   - Communication: Direct WhatsApp chat integration, built-in real-time text messaging, reply, delete, and voice messages recording & playback.
 `;
 
   const messages: any[] = [{ role: 'system', content: systemInstruction }];
