@@ -182,6 +182,7 @@ export interface Payment {
 
 export interface PaymentAccount {
   id: string;
+  user_id?: string;
   account_type: 'bank' | 'easypaisa' | 'jazzcash' | 'sadapay' | 'nayapay' | 'other';
   bank_name: string;
   account_title: string;

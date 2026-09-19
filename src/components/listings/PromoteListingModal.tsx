@@ -93,7 +93,7 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
   useEffect(() => {
     if (isOpen) {
       const loadAccounts = () => {
-        paymentsService.getPaymentAccounts().then((accounts) => {
+        paymentsService.getPaymentAccounts(user?.id).then((accounts) => {
           setPaymentAccounts(accounts);
           if (accounts.length > 0) {
             setSelectedAccountId(prev => (prev && accounts.some(a => a.id === prev) ? prev : accounts[0].id));
@@ -115,7 +115,7 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
         channel.unsubscribe();
       };
     }
-  }, [isOpen]);
+  }, [isOpen, user?.id]);
 
   if (!isOpen) return null;
 
