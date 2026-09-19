@@ -588,26 +588,15 @@ export const paymentsService = {
     if (error) throw error;
   },
 
-  async getPaymentAccounts(userId?: string): Promise<PaymentAccount[]> {
+  async getPaymentAccounts(): Promise<PaymentAccount[]> {
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('payment_accounts')
         .select('*')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
 
-      if (userId) {
-        query = query.or(`user_id.eq.${userId},user_id.is.null`);
-      }
-
-      const { data, error } = await query.order('created_at', { ascending: true });
-
-      if (!error && data) {
-        if (userId) {
-          const userSpecific = data.filter(a => a.user_id === userId);
-          if (userSpecific.length > 0) return userSpecific as PaymentAccount[];
-          const globalAccounts = data.filter(a => !a.user_id);
-          if (globalAccounts.length > 0) return globalAccounts as PaymentAccount[];
-        }
+      if (!error && data && data.length > 0) {
         return data as PaymentAccount[];
       }
       if (error) {
@@ -617,23 +606,17 @@ export const paymentsService = {
       console.error('Exception fetching payment accounts:', e);
     }
 
-    return [];
+    return DEFAULT_PAYMENT_ACCOUNTS;
   },
 
-  async getAllPaymentAccounts(userId?: string): Promise<PaymentAccount[]> {
+  async getAllPaymentAccounts(): Promise<PaymentAccount[]> {
     try {
-      let query = supabase.from('payment_accounts').select('*');
-      if (userId) {
-        query = query.or(`user_id.eq.${userId},user_id.is.null`);
-      }
-      const { data, error } = await query.order('created_at', { ascending: false });
+      const { data, error } = await supabase
+        .from('payment_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+
       if (!error && data) {
-        if (userId) {
-          const userSpecific = data.filter(a => a.user_id === userId);
-          if (userSpecific.length > 0) return userSpecific as PaymentAccount[];
-          const globalAccounts = data.filter(a => !a.user_id);
-          if (globalAccounts.length > 0) return globalAccounts as PaymentAccount[];
-        }
         return data as PaymentAccount[];
       }
       if (error) {

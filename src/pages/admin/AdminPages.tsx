@@ -722,7 +722,7 @@ export const AdminPaymentsPage: React.FC = () => {
 
   const fetchAccounts = async () => {
     try {
-      const accs = await paymentsService.getAllPaymentAccounts(user?.id);
+      const accs = await paymentsService.getAllPaymentAccounts();
       setAccounts(accs);
     } catch (e) {
       console.error('Error fetching payment accounts:', e);
