@@ -744,6 +744,9 @@ export const AdminPaymentsPage: React.FC = () => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
         fetchPayments();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_accounts' }, () => {
+        fetchAccounts();
+      })
       .subscribe();
 
     return () => {

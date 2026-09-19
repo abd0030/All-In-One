@@ -527,7 +527,7 @@ export const usersService = {
 // ============================================================
 export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
   {
-    id: 'acc-meezan-01',
+    id: 'a0000000-0000-0000-0000-000000000001',
     account_type: 'bank',
     bank_name: 'Meezan Bank',
     account_title: 'All In One Classifieds (Pvt) Ltd',
@@ -537,7 +537,7 @@ export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
     is_active: true,
   },
   {
-    id: 'acc-easypaisa-01',
+    id: 'a0000000-0000-0000-0000-000000000002',
     account_type: 'easypaisa',
     bank_name: 'EasyPaisa Wallet',
     account_title: 'Muhammad Abdullah',
@@ -546,7 +546,7 @@ export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
     is_active: true,
   },
   {
-    id: 'acc-jazzcash-01',
+    id: 'a0000000-0000-0000-0000-000000000003',
     account_type: 'jazzcash',
     bank_name: 'JazzCash Wallet',
     account_title: 'Muhammad Abdullah',
@@ -558,6 +558,17 @@ export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
 
 const LOCAL_ACCOUNTS_KEY = 'aio_payment_accounts';
 const CONFIG_STORAGE_PATH = 'config/payment_accounts.json';
+
+const generateUUID = (): string => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+};
 
 const getLocalPaymentAccounts = (): PaymentAccount[] => {
   try {
@@ -628,16 +639,18 @@ export const paymentsService = {
   },
 
   async getPaymentAccounts(): Promise<PaymentAccount[]> {
-    // 1. Try Supabase SQL Table
+    // 1. Try Supabase SQL Table first
     try {
       const { data, error } = await supabase
         .from('payment_accounts')
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: true });
-      if (!error && data && data.length > 0) {
-        setLocalPaymentAccounts(data as PaymentAccount[]);
-        return data as PaymentAccount[];
+      if (!error && data !== null) {
+        if (data.length > 0) {
+          setLocalPaymentAccounts(data as PaymentAccount[]);
+          return data as PaymentAccount[];
+        }
       }
     } catch {}
 
@@ -652,15 +665,17 @@ export const paymentsService = {
   },
 
   async getAllPaymentAccounts(): Promise<PaymentAccount[]> {
-    // 1. Try Supabase SQL Table
+    // 1. Try Supabase SQL Table first
     try {
       const { data, error } = await supabase
         .from('payment_accounts')
         .select('*')
         .order('created_at', { ascending: false });
-      if (!error && data && data.length > 0) {
-        setLocalPaymentAccounts(data as PaymentAccount[]);
-        return data as PaymentAccount[];
+      if (!error && data !== null) {
+        if (data.length > 0) {
+          setLocalPaymentAccounts(data as PaymentAccount[]);
+          return data as PaymentAccount[];
+        }
       }
     } catch {}
 
@@ -675,11 +690,13 @@ export const paymentsService = {
   },
 
   async createPaymentAccount(account: Omit<PaymentAccount, 'id' | 'created_at' | 'updated_at'>): Promise<PaymentAccount> {
+    const newId = generateUUID();
     let createdItem: PaymentAccount | null = null;
     try {
       const { data, error } = await supabase
         .from('payment_accounts')
         .insert({
+          id: newId,
           account_type: account.account_type,
           bank_name: account.bank_name,
           account_title: account.account_title,
@@ -692,6 +709,8 @@ export const paymentsService = {
         .single();
       if (!error && data) {
         createdItem = data as PaymentAccount;
+      } else if (error) {
+        console.warn('Supabase insert error, falling back:', error);
       }
     } catch (e) {
       console.warn('payment_accounts table insert not available, saving to cloud/local fallback:', e);
@@ -699,7 +718,7 @@ export const paymentsService = {
 
     if (!createdItem) {
       createdItem = {
-        id: 'acc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        id: newId,
         account_type: account.account_type,
         bank_name: account.bank_name,
         account_title: account.account_title,
@@ -720,16 +739,19 @@ export const paymentsService = {
   },
 
   async updatePaymentAccount(id: string, updates: Partial<PaymentAccount>): Promise<void> {
-    try {
-      await supabase
-        .from('payment_accounts')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-    } catch (e) {
-      console.warn('payment_accounts table update error:', e);
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isValidUUID) {
+      try {
+        await supabase
+          .from('payment_accounts')
+          .update({
+            ...updates,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', id);
+      } catch (e) {
+        console.warn('payment_accounts table update error:', e);
+      }
     }
 
     const local = getLocalPaymentAccounts();
@@ -739,13 +761,16 @@ export const paymentsService = {
   },
 
   async deletePaymentAccount(id: string): Promise<void> {
-    try {
-      await supabase
-        .from('payment_accounts')
-        .delete()
-        .eq('id', id);
-    } catch (e) {
-      console.warn('payment_accounts table delete error:', e);
+    const isValidUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+    if (isValidUUID) {
+      try {
+        await supabase
+          .from('payment_accounts')
+          .delete()
+          .eq('id', id);
+      } catch (e) {
+        console.warn('payment_accounts table delete error:', e);
+      }
     }
 
     const local = getLocalPaymentAccounts();

@@ -9,6 +9,7 @@ import { Listing, PaymentAccount } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 import { paymentsService } from '../../services';
 import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 
 interface PromoteListingModalProps {
   isOpen: boolean;
@@ -91,12 +92,28 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      paymentsService.getPaymentAccounts().then((accounts) => {
-        setPaymentAccounts(accounts);
-        if (accounts.length > 0) {
-          setSelectedAccountId(accounts[0].id);
-        }
-      }).catch(console.error);
+      const loadAccounts = () => {
+        paymentsService.getPaymentAccounts().then((accounts) => {
+          setPaymentAccounts(accounts);
+          if (accounts.length > 0) {
+            setSelectedAccountId(prev => (prev && accounts.some(a => a.id === prev) ? prev : accounts[0].id));
+          }
+        }).catch(console.error);
+      };
+
+      loadAccounts();
+
+      // Realtime listener for any admin changes
+      const channel = supabase
+        .channel('promote-accounts-channel')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'payment_accounts' }, () => {
+          loadAccounts();
+        })
+        .subscribe();
+
+      return () => {
+        channel.unsubscribe();
+      };
     }
   }, [isOpen]);
 
