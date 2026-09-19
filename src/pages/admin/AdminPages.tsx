@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Users, Package, DollarSign, TrendingUp, Shield, CheckCircle,
   XCircle, Download, Search, MoreVertical, Star, Ban, Edit2, Trash2,
-  Building2, Smartphone, Plus, Copy, Check, Eye, CheckCircle2, AlertCircle, RefreshCw, User as UserIcon
+  Building2, Smartphone, Plus, Copy, Check, Eye, CheckCircle2, AlertCircle, RefreshCw, User as UserIcon, Database, Terminal
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { StatCard, Badge, Button, Skeleton, EmptyState, Modal, Select, Input } from '../../components/ui';
@@ -1143,6 +1143,79 @@ export const AdminPaymentsPage: React.FC = () => {
         {/* TAB 2: Bank & Wallet Accounts Configuration */}
         {activeTab === 'accounts' && (
           <div className="space-y-4">
+            {/* Supabase Database Connection & Migration Banner */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-500/10 via-indigo-500/10 to-purple-500/10 border border-blue-200 dark:border-blue-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="p-2 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded-xl shrink-0 mt-0.5">
+                  <Database size={18} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span>Database Multi-Device Synchronization</span>
+                    <span className="text-[10px] uppercase font-extrabold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                      Supabase SQL
+                    </span>
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    To permanently synchronize bank accounts across all devices, paste and run the SQL migration in your Supabase SQL Editor.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <button
+                  onClick={() => {
+                    const sqlScript = `-- 1. Create Payment Accounts Table
+CREATE TABLE IF NOT EXISTS public.payment_accounts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  account_type TEXT NOT NULL DEFAULT 'bank',
+  bank_name TEXT NOT NULL,
+  account_title TEXT NOT NULL,
+  account_number TEXT NOT NULL,
+  iban TEXT,
+  instructions TEXT,
+  is_active BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 2. Enable Row Level Security (RLS)
+ALTER TABLE public.payment_accounts ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public can view active payment accounts" ON public.payment_accounts;
+CREATE POLICY "Public can view active payment accounts" ON public.payment_accounts FOR SELECT USING (true);
+
+DROP POLICY IF EXISTS "Admins can manage payment accounts" ON public.payment_accounts;
+CREATE POLICY "Admins can manage payment accounts" ON public.payment_accounts FOR ALL USING (
+  EXISTS (
+    SELECT 1 FROM public.users 
+    WHERE id = auth.uid() 
+    AND (role::text IN ('admin', 'superadmin', 'super_admin') OR 'admin' = ANY(roles::text[]) OR 'superadmin' = ANY(roles::text[]) OR 'super_admin' = ANY(roles::text[]))
+  )
+);
+
+-- 3. Ensure payments table has proof and approval columns
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS receipt_url TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS sender_name TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS sender_phone TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS verified_by UUID REFERENCES public.users(id) ON DELETE SET NULL;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS duration_days INTEGER DEFAULT 7;
+ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS package_name TEXT;
+
+-- 4. Reload Schema Cache
+NOTIFY pgrst, 'reload schema';`;
+                    navigator.clipboard.writeText(sqlScript);
+                    toast.success('📋 Supabase SQL script copied! Paste and Run in Supabase SQL Editor.');
+                  }}
+                  className="px-3 py-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-700 text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                >
+                  <Copy size={13} />
+                  <span>Copy Supabase SQL</span>
+                </button>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <p className="text-xs text-slate-500 dark:text-slate-400">
                 Configure receiving bank accounts and mobile wallets displayed to users during manual payment promotions.
