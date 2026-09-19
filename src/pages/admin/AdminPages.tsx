@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Users, Package, DollarSign, TrendingUp, Shield, CheckCircle,
   XCircle, Download, Search, MoreVertical, Star, Ban, Edit2, Trash2,
-  Building2, Smartphone, Plus, Copy, Check, Eye, CheckCircle2, AlertCircle, RefreshCw
+  Building2, Smartphone, Plus, Copy, Check, Eye, CheckCircle2, AlertCircle, RefreshCw, User as UserIcon
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { StatCard, Badge, Button, Skeleton, EmptyState, Modal, Select, Input } from '../../components/ui';
@@ -1038,11 +1038,70 @@ export const AdminPaymentsPage: React.FC = () => {
                           {p.transaction_id && <span>TRX ID: <strong className="font-mono text-slate-700 dark:text-slate-300">{p.transaction_id}</strong></span>}
                           <span>Date: {formatDate(p.created_at)}</span>
                         </div>
-                        {p.notes && (
-                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 bg-slate-50 dark:bg-slate-850 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
-                            📝 {p.notes}
-                          </p>
-                        )}
+
+                        {(() => {
+                          let sender = p.sender_name || '';
+                          let phone = p.sender_phone || '';
+                          let account = '';
+                          let note = '';
+
+                          if (p.notes) {
+                            const parts = p.notes.split('|').map(s => s.trim());
+                            for (const part of parts) {
+                              if (part.startsWith('Sender:')) {
+                                const val = part.replace('Sender:', '').trim();
+                                const phoneMatch = val.match(/\((.*?)\)/);
+                                if (phoneMatch) {
+                                  phone = phoneMatch[1].trim();
+                                  sender = val.replace(/\(.*?\)/, '').trim();
+                                } else {
+                                  sender = val;
+                                }
+                              } else if (part.startsWith('Account:')) {
+                                account = part.replace('Account:', '').trim();
+                              } else if (part.startsWith('Note:')) {
+                                const val = part.replace('Note:', '').trim();
+                                if (val.toLowerCase() !== 'none' && val.toLowerCase() !== 'n/a') {
+                                  note = val;
+                                }
+                              } else if (!part.startsWith('Proof:') && !part.startsWith('Manual payment proof')) {
+                                if (!note && part) note = part;
+                              }
+                            }
+                          }
+
+                          const hasDetails = sender || phone || account || note;
+                          if (!hasDetails) return null;
+
+                          return (
+                            <div className="mt-2.5 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-850/80 border border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                                {(sender || phone) && (
+                                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                                    <UserIcon size={13} className="text-primary-500" />
+                                    <span className="text-slate-400">Sender:</span>
+                                    <strong className="font-semibold text-slate-900 dark:text-slate-100">
+                                      {sender} {phone ? `(${phone})` : ''}
+                                    </strong>
+                                  </span>
+                                )}
+                                {account && (
+                                  <span className="flex items-center gap-1.5 text-slate-700 dark:text-slate-300">
+                                    <Building2 size={13} className="text-emerald-500" />
+                                    <span className="text-slate-400">Paid To:</span>
+                                    <strong className="font-semibold text-slate-900 dark:text-slate-100">{account}</strong>
+                                  </span>
+                                )}
+                              </div>
+                              {note && (
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-start gap-1">
+                                  <span className="shrink-0">💬</span>
+                                  <span>{note}</span>
+                                </p>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
                     </div>
 

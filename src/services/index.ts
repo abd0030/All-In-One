@@ -557,6 +557,7 @@ export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
 ];
 
 const LOCAL_ACCOUNTS_KEY = 'aio_payment_accounts';
+const CONFIG_STORAGE_PATH = 'config/payment_accounts.json';
 
 const getLocalPaymentAccounts = (): PaymentAccount[] => {
   try {
@@ -573,6 +574,36 @@ const setLocalPaymentAccounts = (accounts: PaymentAccount[]) => {
   try {
     localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
   } catch {}
+};
+
+const syncCloudAccounts = async (accounts: PaymentAccount[]) => {
+  try {
+    const jsonBlob = new Blob([JSON.stringify(accounts, null, 2)], { type: 'application/json' });
+    await supabase.storage
+      .from('listing-images')
+      .upload(CONFIG_STORAGE_PATH, jsonBlob, { upsert: true, cacheControl: '0' });
+  } catch (err) {
+    console.warn('Could not sync accounts to cloud storage fallback:', err);
+  }
+};
+
+const fetchCloudAccounts = async (): Promise<PaymentAccount[] | null> => {
+  try {
+    const { data } = supabase.storage
+      .from('listing-images')
+      .getPublicUrl(CONFIG_STORAGE_PATH);
+    if (data?.publicUrl) {
+      const res = await fetch(`${data.publicUrl}?t=${Date.now()}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (Array.isArray(json) && json.length > 0) {
+          setLocalPaymentAccounts(json);
+          return json as PaymentAccount[];
+        }
+      }
+    }
+  } catch {}
+  return null;
 };
 
 export const paymentsService = {
@@ -597,6 +628,7 @@ export const paymentsService = {
   },
 
   async getPaymentAccounts(): Promise<PaymentAccount[]> {
+    // 1. Try Supabase SQL Table
     try {
       const { data, error } = await supabase
         .from('payment_accounts')
@@ -604,26 +636,46 @@ export const paymentsService = {
         .eq('is_active', true)
         .order('created_at', { ascending: true });
       if (!error && data && data.length > 0) {
+        setLocalPaymentAccounts(data as PaymentAccount[]);
         return data as PaymentAccount[];
       }
     } catch {}
+
+    // 2. Try Supabase Cloud Storage (universal real-time cloud sync across all users)
+    const cloudAccounts = await fetchCloudAccounts();
+    if (cloudAccounts && cloudAccounts.length > 0) {
+      return cloudAccounts.filter(a => a.is_active !== false);
+    }
+
+    // 3. Fallback to localStorage or defaults
     return getLocalPaymentAccounts().filter(a => a.is_active !== false);
   },
 
   async getAllPaymentAccounts(): Promise<PaymentAccount[]> {
+    // 1. Try Supabase SQL Table
     try {
       const { data, error } = await supabase
         .from('payment_accounts')
         .select('*')
         .order('created_at', { ascending: false });
       if (!error && data && data.length > 0) {
+        setLocalPaymentAccounts(data as PaymentAccount[]);
         return data as PaymentAccount[];
       }
     } catch {}
+
+    // 2. Try Supabase Cloud Storage
+    const cloudAccounts = await fetchCloudAccounts();
+    if (cloudAccounts && cloudAccounts.length > 0) {
+      return cloudAccounts;
+    }
+
+    // 3. Fallback to localStorage or defaults
     return getLocalPaymentAccounts();
   },
 
   async createPaymentAccount(account: Omit<PaymentAccount, 'id' | 'created_at' | 'updated_at'>): Promise<PaymentAccount> {
+    let createdItem: PaymentAccount | null = null;
     try {
       const { data, error } = await supabase
         .from('payment_accounts')
@@ -639,74 +691,67 @@ export const paymentsService = {
         .select()
         .single();
       if (!error && data) {
-        const local = getLocalPaymentAccounts();
-        setLocalPaymentAccounts([data as PaymentAccount, ...local.filter(a => a.id !== data.id)]);
-        return data as PaymentAccount;
+        createdItem = data as PaymentAccount;
       }
     } catch (e) {
-      console.warn('payment_accounts table not found or error, saving to local fallback storage:', e);
+      console.warn('payment_accounts table insert not available, saving to cloud/local fallback:', e);
     }
 
-    // Resilient fallback to local storage
-    const newAcc: PaymentAccount = {
-      id: 'acc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-      account_type: account.account_type,
-      bank_name: account.bank_name,
-      account_title: account.account_title,
-      account_number: account.account_number,
-      iban: account.iban || undefined,
-      instructions: account.instructions || undefined,
-      is_active: account.is_active ?? true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
+    if (!createdItem) {
+      createdItem = {
+        id: 'acc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+        account_type: account.account_type,
+        bank_name: account.bank_name,
+        account_title: account.account_title,
+        account_number: account.account_number,
+        iban: account.iban || undefined,
+        instructions: account.instructions || undefined,
+        is_active: account.is_active ?? true,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
     const current = getLocalPaymentAccounts();
-    const updated = [newAcc, ...current];
+    const updated = [createdItem, ...current.filter(a => a.id !== createdItem?.id)];
     setLocalPaymentAccounts(updated);
-    return newAcc;
+    await syncCloudAccounts(updated);
+    return createdItem;
   },
 
   async updatePaymentAccount(id: string, updates: Partial<PaymentAccount>): Promise<void> {
     try {
-      const { error } = await supabase
+      await supabase
         .from('payment_accounts')
         .update({
           ...updates,
           updated_at: new Date().toISOString(),
         })
         .eq('id', id);
-      if (!error) {
-        const local = getLocalPaymentAccounts();
-        setLocalPaymentAccounts(local.map(a => a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a));
-        return;
-      }
     } catch (e) {
-      console.warn('payment_accounts table not found or error, saving to local fallback storage:', e);
+      console.warn('payment_accounts table update error:', e);
     }
 
-    // Resilient fallback to local storage
     const local = getLocalPaymentAccounts();
     const updated = local.map(a => a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a);
     setLocalPaymentAccounts(updated);
+    await syncCloudAccounts(updated);
   },
 
   async deletePaymentAccount(id: string): Promise<void> {
     try {
-      const { error } = await supabase
+      await supabase
         .from('payment_accounts')
         .delete()
         .eq('id', id);
-      if (!error) {
-        const local = getLocalPaymentAccounts();
-        setLocalPaymentAccounts(local.filter(a => a.id !== id));
-        return;
-      }
     } catch (e) {
-      console.warn('payment_accounts table not found or error, removing from local fallback storage:', e);
+      console.warn('payment_accounts table delete error:', e);
     }
 
     const local = getLocalPaymentAccounts();
-    setLocalPaymentAccounts(local.filter(a => a.id !== id));
+    const updated = local.filter(a => a.id !== id);
+    setLocalPaymentAccounts(updated);
+    await syncCloudAccounts(updated);
   },
 
   async uploadReceiptScreenshot(file: File, userId: string): Promise<string> {
