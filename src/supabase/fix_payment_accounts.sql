@@ -63,5 +63,13 @@ ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS verified_by UUID REFERENCES
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS duration_days INTEGER DEFAULT 7;
 ALTER TABLE public.payments ADD COLUMN IF NOT EXISTS package_name TEXT;
 
--- 4. Reload Schema Cache
+-- 4. Seed initial default accounts (only if not already present)
+INSERT INTO public.payment_accounts (id, user_id, account_type, bank_name, account_title, account_number, iban, instructions, is_active)
+VALUES
+  ('a0000000-0000-0000-0000-000000000001', NULL, 'bank', 'Meezan Bank', 'All In One Classifieds (Pvt) Ltd', '01010102938475', 'PK45MEZN0001010102938475', 'Send exact package amount and upload clear transaction slip / screenshot.', true),
+  ('a0000000-0000-0000-0000-000000000002', NULL, 'easypaisa', 'EasyPaisa Wallet', 'Muhammad Abdullah', '03001234567', NULL, 'Transfer via EasyPaisa app or retail shop. Ensure TRX ID is clearly visible in screenshot.', true),
+  ('a0000000-0000-0000-0000-000000000003', NULL, 'jazzcash', 'JazzCash Wallet', 'Muhammad Abdullah', '03007654321', NULL, 'Send payment to JazzCash mobile account and attach payment receipt proof.', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- 5. Reload Schema Cache
 NOTIFY pgrst, 'reload schema';

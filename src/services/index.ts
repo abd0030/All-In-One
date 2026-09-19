@@ -579,78 +579,60 @@ export const paymentsService = {
 
   async getPaymentAccounts(userId?: string): Promise<PaymentAccount[]> {
     try {
+      let query = supabase
+        .from('payment_accounts')
+        .select('*')
+        .eq('is_active', true);
+
       if (userId) {
-        // Fetch user-specific active accounts from Supabase
-        const { data: userAccounts, error: userErr } = await supabase
-          .from('payment_accounts')
-          .select('*')
-          .eq('user_id', userId)
-          .eq('is_active', true)
-          .order('created_at', { ascending: true });
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
+      }
 
-        if (!userErr && userAccounts && userAccounts.length > 0) {
-          return userAccounts as PaymentAccount[];
+      const { data, error } = await query.order('created_at', { ascending: true });
+
+      if (!error && data) {
+        if (userId) {
+          const userSpecific = data.filter(a => a.user_id === userId);
+          if (userSpecific.length > 0) return userSpecific as PaymentAccount[];
+          const globalAccounts = data.filter(a => !a.user_id);
+          if (globalAccounts.length > 0) return globalAccounts as PaymentAccount[];
         }
+        return data as PaymentAccount[];
       }
-
-      // Fetch global active accounts (user_id is null)
-      const { data: globalAccounts, error: globalErr } = await supabase
-        .from('payment_accounts')
-        .select('*')
-        .is('user_id', null)
-        .eq('is_active', true)
-        .order('created_at', { ascending: true });
-
-      if (!globalErr && globalAccounts && globalAccounts.length > 0) {
-        return globalAccounts as PaymentAccount[];
-      }
-
-      // Fetch any active accounts
-      const { data: anyActive, error: anyErr } = await supabase
-        .from('payment_accounts')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: true });
-
-      if (!anyErr && anyActive && anyActive.length > 0) {
-        return anyActive as PaymentAccount[];
+      if (error) {
+        console.error('Error fetching payment accounts from Supabase:', error);
       }
     } catch (e) {
       console.error('Exception fetching payment accounts:', e);
     }
 
-    return DEFAULT_PAYMENT_ACCOUNTS;
+    return [];
   },
 
   async getAllPaymentAccounts(userId?: string): Promise<PaymentAccount[]> {
     try {
+      let query = supabase.from('payment_accounts').select('*');
       if (userId) {
-        // Fetch all accounts owned by this user
-        const { data: userAccounts, error: userErr } = await supabase
-          .from('payment_accounts')
-          .select('*')
-          .eq('user_id', userId)
-          .order('created_at', { ascending: false });
-
-        if (!userErr && userAccounts && userAccounts.length > 0) {
-          return userAccounts as PaymentAccount[];
-        }
+        query = query.or(`user_id.eq.${userId},user_id.is.null`);
       }
-
-      // If user hasn't added any yet, fetch global or all accounts from Supabase
-      const { data, error } = await supabase
-        .from('payment_accounts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (!error && data && data.length > 0) {
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (!error && data) {
+        if (userId) {
+          const userSpecific = data.filter(a => a.user_id === userId);
+          if (userSpecific.length > 0) return userSpecific as PaymentAccount[];
+          const globalAccounts = data.filter(a => !a.user_id);
+          if (globalAccounts.length > 0) return globalAccounts as PaymentAccount[];
+        }
         return data as PaymentAccount[];
+      }
+      if (error) {
+        console.error('Error fetching all payment accounts from Supabase:', error);
       }
     } catch (e) {
       console.error('Exception fetching all payment accounts:', e);
     }
 
-    return DEFAULT_PAYMENT_ACCOUNTS;
+    return [];
   },
 
   async createPaymentAccount(account: Omit<PaymentAccount, 'id' | 'created_at' | 'updated_at'>): Promise<PaymentAccount> {
