@@ -60,6 +60,8 @@ export const VerifyOtpPage: React.FC = () => {
 
       // Give AuthContext up to 5 seconds to set the user state, then navigate
       let waited = 0;
+      const targetRedirect = (location.state as any)?.redirect || new URLSearchParams(location.search).get('redirect');
+
       const pollForUser = setInterval(async () => {
         waited += 200;
         const { data: { user: authUser } } = await supabase.auth.getUser();
@@ -71,13 +73,19 @@ export const VerifyOtpPage: React.FC = () => {
             .eq('id', authUser.id)
             .single();
           const role = profile?.role || 'buyer';
-          if (role === 'super_admin') navigate('/superadmin', { replace: true });
+          if (targetRedirect && !['/login', '/register', '/forgot-password'].includes(targetRedirect)) {
+            navigate(targetRedirect, { replace: true });
+          } else if (role === 'super_admin') navigate('/superadmin', { replace: true });
           else if (role === 'admin') navigate('/admin', { replace: true });
           else if (role === 'moderator') navigate('/moderator', { replace: true });
           else navigate('/', { replace: true });
         } else if (waited >= 5000) {
           clearInterval(pollForUser);
-          navigate('/', { replace: true });
+          if (targetRedirect && !['/login', '/register', '/forgot-password'].includes(targetRedirect)) {
+            navigate(targetRedirect, { replace: true });
+          } else {
+            navigate('/', { replace: true });
+          }
         }
       }, 200);
     } catch (err: any) {

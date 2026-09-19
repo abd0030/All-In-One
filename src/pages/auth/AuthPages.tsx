@@ -24,10 +24,13 @@ export const LoginPage: React.FC = () => {
   const { signIn, signInWithOtp, signInWithGoogle, refreshUser, signOut, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
   const [isDemoLoading, setIsDemoLoading] = useState<string | null>(null);
   const [isOtpLogin, setIsOtpLogin] = useState(false);
-  const from = (location.state as { from?: string })?.from;
+  
+  const queryRedirect = searchParams.get('redirect');
+  const from = (location.state as { from?: string })?.from || queryRedirect;
 
   const getRedirectPath = (returnedUser: typeof user | null) => {
     if (!returnedUser) return '/';
@@ -229,7 +232,10 @@ export const LoginPage: React.FC = () => {
 
           <div className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
             Don't have an account?{' '}
-            <Link to="/register" className="text-primary-600 hover:underline font-semibold">
+            <Link
+              to={queryRedirect ? `/register?redirect=${encodeURIComponent(queryRedirect)}` : '/register'}
+              className="text-primary-600 hover:underline font-semibold"
+            >
               Create one
             </Link>
           </div>
@@ -261,7 +267,9 @@ type RegisterData = z.infer<typeof registerSchema>;
 export const RegisterPage: React.FC = () => {
   const { signUp, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [showPassword, setShowPassword] = useState(false);
+  const redirectParam = searchParams.get('redirect');
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterData>({
     resolver: zodResolver(registerSchema),
@@ -272,7 +280,7 @@ export const RegisterPage: React.FC = () => {
     try {
       await signUp(data.email, data.password, data.full_name, data.role, data.phone);
       toast.success('Account created! Please enter the verification code sent to your email.');
-      navigate('/verify-otp', { state: { email: data.email, type: 'signup' } });
+      navigate('/verify-otp', { state: { email: data.email, type: 'signup', redirect: redirectParam } });
     } catch (err: unknown) {
       const error = err as { message?: string };
       const message = error.message || 'Failed to create account';
@@ -389,7 +397,10 @@ export const RegisterPage: React.FC = () => {
 
           <div className="mt-5 text-center text-sm text-slate-500 dark:text-slate-400">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary-600 hover:underline font-semibold">
+            <Link
+              to={redirectParam ? `/login?redirect=${encodeURIComponent(redirectParam)}` : '/login'}
+              className="text-primary-600 hover:underline font-semibold"
+            >
               Sign in
             </Link>
           </div>
