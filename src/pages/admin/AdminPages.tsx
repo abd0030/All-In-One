@@ -1047,15 +1047,18 @@ export const AdminPaymentsPage: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-3 self-end md:self-center shrink-0">
-                      {p.receipt_url && (
-                        <button
-                          onClick={() => setPreviewReceipt(p.receipt_url || null)}
-                          className="px-3 py-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 border border-primary-300 dark:border-primary-700 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors flex items-center gap-1.5 cursor-pointer"
-                        >
-                          <Eye size={13} />
-                          <span>View Receipt</span>
-                        </button>
-                      )}
+                      {(() => {
+                        const receiptSrc = p.receipt_url || (p.notes?.includes('Proof: ') ? p.notes.split('Proof: ')[1]?.trim() : null);
+                        return receiptSrc ? (
+                          <button
+                            onClick={() => setPreviewReceipt(receiptSrc)}
+                            className="px-3 py-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 border border-primary-300 dark:border-primary-700 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye size={13} />
+                            <span>View Receipt</span>
+                          </button>
+                        ) : null;
+                      })()}
                       <Badge variant={p.status === 'completed' ? 'success' : p.status === 'failed' ? 'error' : 'warning'} className="capitalize">
                         {p.status}
                       </Badge>

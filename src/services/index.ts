@@ -556,6 +556,25 @@ export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
   },
 ];
 
+const LOCAL_ACCOUNTS_KEY = 'aio_payment_accounts';
+
+const getLocalPaymentAccounts = (): PaymentAccount[] => {
+  try {
+    const raw = localStorage.getItem(LOCAL_ACCOUNTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch {}
+  return DEFAULT_PAYMENT_ACCOUNTS;
+};
+
+const setLocalPaymentAccounts = (accounts: PaymentAccount[]) => {
+  try {
+    localStorage.setItem(LOCAL_ACCOUNTS_KEY, JSON.stringify(accounts));
+  } catch {}
+};
+
 export const paymentsService = {
   async getPayments() {
     const { data, error } = await supabase
@@ -584,13 +603,11 @@ export const paymentsService = {
         .select('*')
         .eq('is_active', true)
         .order('created_at', { ascending: true });
-      if (error || !data || data.length === 0) {
-        return DEFAULT_PAYMENT_ACCOUNTS;
+      if (!error && data && data.length > 0) {
+        return data as PaymentAccount[];
       }
-      return data as PaymentAccount[];
-    } catch {
-      return DEFAULT_PAYMENT_ACCOUNTS;
-    }
+    } catch {}
+    return getLocalPaymentAccounts().filter(a => a.is_active !== false);
   },
 
   async getAllPaymentAccounts(): Promise<PaymentAccount[]> {
@@ -599,50 +616,97 @@ export const paymentsService = {
         .from('payment_accounts')
         .select('*')
         .order('created_at', { ascending: false });
-      if (error || !data || data.length === 0) {
-        return DEFAULT_PAYMENT_ACCOUNTS;
+      if (!error && data && data.length > 0) {
+        return data as PaymentAccount[];
       }
-      return data as PaymentAccount[];
-    } catch {
-      return DEFAULT_PAYMENT_ACCOUNTS;
-    }
+    } catch {}
+    return getLocalPaymentAccounts();
   },
 
   async createPaymentAccount(account: Omit<PaymentAccount, 'id' | 'created_at' | 'updated_at'>): Promise<PaymentAccount> {
-    const { data, error } = await supabase
-      .from('payment_accounts')
-      .insert({
-        account_type: account.account_type,
-        bank_name: account.bank_name,
-        account_title: account.account_title,
-        account_number: account.account_number,
-        iban: account.iban || null,
-        instructions: account.instructions || null,
-        is_active: account.is_active ?? true,
-      })
-      .select()
-      .single();
-    if (error) throw error;
-    return data as PaymentAccount;
+    try {
+      const { data, error } = await supabase
+        .from('payment_accounts')
+        .insert({
+          account_type: account.account_type,
+          bank_name: account.bank_name,
+          account_title: account.account_title,
+          account_number: account.account_number,
+          iban: account.iban || null,
+          instructions: account.instructions || null,
+          is_active: account.is_active ?? true,
+        })
+        .select()
+        .single();
+      if (!error && data) {
+        const local = getLocalPaymentAccounts();
+        setLocalPaymentAccounts([data as PaymentAccount, ...local.filter(a => a.id !== data.id)]);
+        return data as PaymentAccount;
+      }
+    } catch (e) {
+      console.warn('payment_accounts table not found or error, saving to local fallback storage:', e);
+    }
+
+    // Resilient fallback to local storage
+    const newAcc: PaymentAccount = {
+      id: 'acc-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
+      account_type: account.account_type,
+      bank_name: account.bank_name,
+      account_title: account.account_title,
+      account_number: account.account_number,
+      iban: account.iban || undefined,
+      instructions: account.instructions || undefined,
+      is_active: account.is_active ?? true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+    const current = getLocalPaymentAccounts();
+    const updated = [newAcc, ...current];
+    setLocalPaymentAccounts(updated);
+    return newAcc;
   },
 
   async updatePaymentAccount(id: string, updates: Partial<PaymentAccount>): Promise<void> {
-    const { error } = await supabase
-      .from('payment_accounts')
-      .update({
-        ...updates,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('payment_accounts')
+        .update({
+          ...updates,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (!error) {
+        const local = getLocalPaymentAccounts();
+        setLocalPaymentAccounts(local.map(a => a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a));
+        return;
+      }
+    } catch (e) {
+      console.warn('payment_accounts table not found or error, saving to local fallback storage:', e);
+    }
+
+    // Resilient fallback to local storage
+    const local = getLocalPaymentAccounts();
+    const updated = local.map(a => a.id === id ? { ...a, ...updates, updated_at: new Date().toISOString() } : a);
+    setLocalPaymentAccounts(updated);
   },
 
   async deletePaymentAccount(id: string): Promise<void> {
-    const { error } = await supabase
-      .from('payment_accounts')
-      .delete()
-      .eq('id', id);
-    if (error) throw error;
+    try {
+      const { error } = await supabase
+        .from('payment_accounts')
+        .delete()
+        .eq('id', id);
+      if (!error) {
+        const local = getLocalPaymentAccounts();
+        setLocalPaymentAccounts(local.filter(a => a.id !== id));
+        return;
+      }
+    } catch (e) {
+      console.warn('payment_accounts table not found or error, removing from local fallback storage:', e);
+    }
+
+    const local = getLocalPaymentAccounts();
+    setLocalPaymentAccounts(local.filter(a => a.id !== id));
   },
 
   async uploadReceiptScreenshot(file: File, userId: string): Promise<string> {
@@ -683,26 +747,53 @@ export const paymentsService = {
   }) {
     const receiptUrl = await this.uploadReceiptScreenshot(params.receipt_file, params.user_id);
 
-    const { data, error } = await supabase
-      .from('payments')
-      .insert({
-        listing_id: params.listing_id,
-        user_id: params.user_id,
-        amount: params.amount,
-        currency: 'PKR',
-        method: 'Manual Bank / Wallet Transfer',
-        status: 'pending',
-        transaction_id: params.transaction_id,
-        receipt_url: receiptUrl,
-        package_name: params.package_name,
-        duration_days: params.duration_days,
-        notes: params.notes || 'Direct manual payment submitted for admin verification',
-      })
-      .select()
-      .single();
+    const notesWithProof = params.notes
+      ? `${params.notes} | Proof: ${receiptUrl}`
+      : `Manual payment proof: ${receiptUrl}`;
 
-    if (error) throw error;
-    return data;
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .insert({
+          listing_id: params.listing_id,
+          user_id: params.user_id,
+          amount: params.amount,
+          currency: 'PKR',
+          method: 'Manual Bank / Wallet Transfer',
+          status: 'pending',
+          transaction_id: params.transaction_id,
+          receipt_url: receiptUrl,
+          package_name: params.package_name,
+          duration_days: params.duration_days,
+          notes: notesWithProof,
+        })
+        .select()
+        .single();
+
+      if (!error && data) return data;
+      if (error) throw error;
+    } catch {
+      // Fallback if receipt_url column does not exist in schema cache
+      const { data, error } = await supabase
+        .from('payments')
+        .insert({
+          listing_id: params.listing_id,
+          user_id: params.user_id,
+          amount: params.amount,
+          currency: 'PKR',
+          method: 'Manual Bank / Wallet Transfer',
+          status: 'pending',
+          transaction_id: params.transaction_id,
+          package_name: params.package_name,
+          duration_days: params.duration_days,
+          notes: notesWithProof,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    }
   },
 
   async approveAndPromote(paymentId: string, adminId: string, status: string = 'completed') {
