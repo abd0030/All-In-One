@@ -301,14 +301,16 @@ const Header: React.FC = () => {
                     )}
                   </button>
 
-                  {/* High-Converting + Sell Button */}
+                  {/* High-Converting Luxurious + Sell Button */}
                   {!isManagementRole && (
                     <Link
                       to="/dashboard/listings/new"
-                      className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white text-xs sm:text-sm font-extrabold rounded-2xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 shrink-0"
+                      className="relative group overflow-hidden px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-500 hover:via-orange-600 hover:to-amber-600 text-white text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:shadow-orange-500/40 hover:scale-[1.04] active:scale-95 transition-all duration-300 flex items-center gap-2 border border-amber-300/40 cursor-pointer shrink-0"
                     >
-                      <Plus size={16} className="stroke-[3]" />
-                      <span className="hidden xs:inline sm:inline">Sell</span>
+                      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out" />
+                      <Sparkles className="w-4 h-4 text-amber-100 animate-pulse shrink-0" />
+                      <span>Sell</span>
+                      <Plus size={15} className="stroke-[3] opacity-80 group-hover:rotate-90 transition-transform duration-300" />
                     </Link>
                   )}
 
@@ -431,26 +433,19 @@ const Header: React.FC = () => {
                 </>
               ) : (
                 <div className="flex items-center gap-1.5 sm:gap-2">
-                  <Link
-                    to="/login"
-                    className="px-3 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-850 transition-all"
+                  {/* Ultra-Luxurious Sell Button (Redirects to Login if unauthenticated) */}
+                  <button
+                    onClick={() => {
+                      toast.error('Please sign in or create an account to post your ad');
+                      navigate('/login?redirect=/dashboard/listings/new');
+                    }}
+                    className="relative group overflow-hidden px-4 sm:px-5 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-amber-500 hover:from-amber-500 hover:via-orange-600 hover:to-amber-600 text-white text-xs sm:text-sm font-black uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:shadow-orange-500/40 hover:scale-[1.04] active:scale-95 transition-all duration-300 flex items-center gap-2 border border-amber-300/40 cursor-pointer shrink-0"
                   >
-                    Login
-                  </Link>
-                  <Link
-                    to="/register"
-                    className="px-3.5 sm:px-4 py-2 rounded-2xl text-xs sm:text-sm font-bold bg-primary-600 hover:bg-primary-500 text-white shadow-md shadow-primary-600/25 transition-all"
-                  >
-                    Register
-                  </Link>
-
-                  <Link
-                    to="/dashboard/listings/new"
-                    className="px-3.5 sm:px-4 py-2 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white text-xs sm:text-sm font-extrabold rounded-2xl shadow-md shadow-orange-500/25 hover:shadow-orange-500/40 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-1.5 shrink-0"
-                  >
-                    <Plus size={16} className="stroke-[3]" />
-                    <span className="hidden xs:inline sm:inline">Sell</span>
-                  </Link>
+                    <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 ease-out" />
+                    <Sparkles className="w-4 h-4 text-amber-100 animate-pulse shrink-0" />
+                    <span>Sell</span>
+                    <Plus size={15} className="stroke-[3] opacity-80 group-hover:rotate-90 transition-transform duration-300" />
+                  </button>
                 </div>
               )}
             </div>

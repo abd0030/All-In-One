@@ -14,7 +14,7 @@ import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
 
-const superAdminNav = [
+export const superAdminNav = [
   { label: 'Overview', icon: 'LayoutDashboard', to: '/superadmin' },
   { label: 'Admin Management', icon: 'Shield', to: '/superadmin/admins' },
   { label: 'Moderator Management', icon: 'UserCheck', to: '/superadmin/moderators' },

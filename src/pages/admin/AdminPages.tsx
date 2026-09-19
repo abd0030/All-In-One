@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Users, Package, DollarSign, TrendingUp, Shield, CheckCircle,
-  XCircle, Download, Search, MoreVertical, Star, Ban, Edit2, Trash2
+  XCircle, Download, Search, MoreVertical, Star, Ban, Edit2, Trash2,
+  Building2, Smartphone, Plus, Copy, Check, Eye, CheckCircle2, AlertCircle, RefreshCw
 } from 'lucide-react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { StatCard, Badge, Button, Skeleton, EmptyState, Modal, Select, Input } from '../../components/ui';
@@ -11,11 +12,12 @@ import { usersService, paymentsService, analyticsService } from '../../services'
 import { listingsService } from '../../services/listingsService';
 import { chatService } from '../../services/chatService';
 import { useAuth } from '../../contexts/AuthContext';
-import { Listing, User, Payment } from '../../types';
-import { formatPrice, formatDate, cn } from '../../utils/helpers';
+import { Listing, User, Payment, PaymentAccount } from '../../types';
+import { formatPrice, formatDate, cn, userHasAnyRole } from '../../utils/helpers';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
+import { superAdminNav } from '../superadmin/SuperAdminPages';
 
 const adminNav = [
   { label: 'Overview', icon: 'LayoutDashboard', to: '/admin' },
@@ -676,25 +678,77 @@ export const AdminUsersPage: React.FC = () => {
 };
 
 // ============================================================
-// PAYMENT VERIFICATION PAGE
+// PAYMENT VERIFICATION & ACCOUNTS MANAGEMENT PAGE
 // ============================================================
 export const AdminPaymentsPage: React.FC = () => {
   const { user } = useAuth();
+  const isSuperAdmin = userHasAnyRole(user, ['super_admin']);
+  const nav = isSuperAdmin ? superAdminNav : adminNav;
+
+  const [activeTab, setActiveTab] = useState<'verifications' | 'accounts'>('verifications');
   const [payments, setPayments] = useState<(Payment & { user?: User; listing?: Listing })[]>([]);
+  const [accounts, setAccounts] = useState<PaymentAccount[]>([]);
   const [loading, setLoading] = useState(true);
   const [previewReceipt, setPreviewReceipt] = useState<string | null>(null);
+
+  // Status Filter for Payments
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+
+  // Account Modal State
+  const [accountModalOpen, setAccountModalOpen] = useState(false);
+  const [editingAccount, setEditingAccount] = useState<PaymentAccount | null>(null);
+  const [accType, setAccType] = useState<PaymentAccount['account_type']>('bank');
+  const [accBankName, setAccBankName] = useState('');
+  const [accTitle, setAccTitle] = useState('');
+  const [accNumber, setAccNumber] = useState('');
+  const [accIban, setAccIban] = useState('');
+  const [accInstructions, setAccInstructions] = useState('');
+  const [accIsActive, setAccIsActive] = useState(true);
+  const [accSubmitting, setAccSubmitting] = useState(false);
+
+  // Rejection Modal State
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [rejectPaymentId, setRejectPaymentId] = useState<string | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const fetchPayments = async () => {
     try {
       const d = await paymentsService.getPayments();
       setPayments(d as unknown as (Payment & { user?: User; listing?: Listing })[]);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error('Error fetching payments:', e);
     }
   };
 
+  const fetchAccounts = async () => {
+    try {
+      const accs = await paymentsService.getAllPaymentAccounts();
+      setAccounts(accs);
+    } catch (e) {
+      console.error('Error fetching payment accounts:', e);
+    }
+  };
+
+  const loadData = async () => {
+    setLoading(true);
+    await Promise.all([fetchPayments(), fetchAccounts()]);
+    setLoading(false);
+  };
+
   useEffect(() => {
-    fetchPayments();
+    loadData();
+
+    // Subscribe to payments changes
+    const paymentChannel = supabase
+      .channel('admin-payments-channel')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, () => {
+        fetchPayments();
+      })
+      .subscribe();
+
+    return () => {
+      paymentChannel.unsubscribe();
+    };
   }, []);
 
   const handleVerify = async (id: string, status: 'completed' | 'failed') => {
@@ -711,117 +765,555 @@ export const AdminPaymentsPage: React.FC = () => {
     }
   };
 
+  const handleOpenRejectModal = (paymentId: string) => {
+    setRejectPaymentId(paymentId);
+    setRejectionReason('');
+    setRejectModalOpen(true);
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectPaymentId) return;
+    try {
+      await paymentsService.updatePayment(rejectPaymentId, {
+        status: 'failed',
+        notes: rejectionReason.trim() ? `Rejected: ${rejectionReason}` : 'Rejected by administrator',
+      });
+      toast.success('Payment marked as rejected');
+      setRejectModalOpen(false);
+      setRejectPaymentId(null);
+      fetchPayments();
+    } catch (err: any) {
+      toast.error('Failed to reject payment: ' + (err.message || 'Error'));
+    }
+  };
+
+  const handleOpenAccountModal = (account?: PaymentAccount) => {
+    if (account) {
+      setEditingAccount(account);
+      setAccType(account.account_type);
+      setAccBankName(account.bank_name);
+      setAccTitle(account.account_title);
+      setAccNumber(account.account_number);
+      setAccIban(account.iban || '');
+      setAccInstructions(account.instructions || '');
+      setAccIsActive(account.is_active);
+    } else {
+      setEditingAccount(null);
+      setAccType('bank');
+      setAccBankName('');
+      setAccTitle('');
+      setAccNumber('');
+      setAccIban('');
+      setAccInstructions('');
+      setAccIsActive(true);
+    }
+    setAccountModalOpen(true);
+  };
+
+  const handleSaveAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accBankName || !accTitle || !accNumber) {
+      toast.error('Please fill in Bank Name, Title, and Account Number');
+      return;
+    }
+
+    setAccSubmitting(true);
+    try {
+      if (editingAccount) {
+        await paymentsService.updatePaymentAccount(editingAccount.id, {
+          account_type: accType,
+          bank_name: accBankName,
+          account_title: accTitle,
+          account_number: accNumber,
+          iban: accIban || undefined,
+          instructions: accInstructions || undefined,
+          is_active: accIsActive,
+        });
+        toast.success('Payment account updated successfully');
+      } else {
+        await paymentsService.createPaymentAccount({
+          account_type: accType,
+          bank_name: accBankName,
+          account_title: accTitle,
+          account_number: accNumber,
+          iban: accIban || undefined,
+          instructions: accInstructions || undefined,
+          is_active: accIsActive,
+        });
+        toast.success('New payment account added successfully');
+      }
+      setAccountModalOpen(false);
+      fetchAccounts();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to save payment account');
+    } finally {
+      setAccSubmitting(false);
+    }
+  };
+
+  const handleDeleteAccount = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete ${name}?`)) return;
+    try {
+      await paymentsService.deletePaymentAccount(id);
+      toast.success('Payment account removed');
+      fetchAccounts();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to delete account');
+    }
+  };
+
+  const handleToggleAccountActive = async (account: PaymentAccount) => {
+    try {
+      await paymentsService.updatePaymentAccount(account.id, { is_active: !account.is_active });
+      toast.success(`Account marked as ${!account.is_active ? 'Active' : 'Inactive'}`);
+      fetchAccounts();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update account status');
+    }
+  };
+
   const totalRevenue = payments
     .filter(p => p.status === 'completed')
     .reduce((sum, p) => sum + (p.amount || 0), 0);
   const pendingCount = payments.filter(p => p.status === 'pending').length;
+  const activeAccountsCount = accounts.filter(a => a.is_active).length;
+
+  const filteredPayments = payments.filter(p => {
+    if (statusFilter === 'all') return true;
+    return p.status === statusFilter;
+  });
 
   return (
-    <DashboardLayout navItems={adminNav} title="Payment Verification">
+    <DashboardLayout navItems={nav} title="Payment Management & Verifications">
       <div className="space-y-6">
+        {/* Header Title */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Payment & Promotion Verification</h1>
-            <p className="text-xs text-slate-500">Manage transaction receipts, verify local transfers, and activate featured ad promotions</p>
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2.5">
+              <div className="p-2 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl text-white shadow-md">
+                <DollarSign size={20} />
+              </div>
+              <span>Payment & Promotion Verification</span>
+            </h1>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+              Verify manual receipts, activate featured ads, and manage bank/wallet receiving accounts.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={loadData}
+              className="p-2.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-1.5 transition-colors"
+              title="Refresh Data"
+            >
+              <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+              <span>Refresh</span>
+            </button>
+            {activeTab === 'accounts' && isSuperAdmin && (
+              <Button onClick={() => handleOpenAccountModal()} className="flex items-center gap-1.5">
+                <Plus size={16} />
+                <span>Add Account</span>
+              </Button>
+            )}
           </div>
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <div className="card p-5 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border-emerald-200 dark:border-emerald-800">
             <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Revenue</span>
             <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               PKR {totalRevenue.toLocaleString()}
             </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">From approved promotions</p>
           </div>
           <div className="card p-5 bg-gradient-to-br from-amber-500/10 to-orange-500/10 border-amber-200 dark:border-amber-800">
             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending Approvals</span>
             <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               {pendingCount}
             </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Awaiting receipt verification</p>
           </div>
           <div className="card p-5 bg-gradient-to-br from-primary-500/10 to-indigo-500/10 border-primary-200 dark:border-primary-800">
             <span className="text-xs font-semibold text-primary-600 dark:text-primary-400 uppercase tracking-wider">Total Transactions</span>
             <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
               {payments.length}
             </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Manual & Safepay total</p>
+          </div>
+          <div className="card p-5 bg-gradient-to-br from-purple-500/10 to-pink-500/10 border-purple-200 dark:border-purple-800">
+            <span className="text-xs font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider">Active Receiving Accounts</span>
+            <div className="text-2xl font-black text-slate-900 dark:text-white mt-1">
+              {activeAccountsCount}
+            </div>
+            <p className="text-[11px] text-slate-500 mt-0.5">Bank & mobile wallets</p>
           </div>
         </div>
 
-        {/* Payments List */}
-        {loading ? (
-          <div className="space-y-3">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
-        ) : payments.length === 0 ? (
-          <EmptyState icon={<DollarSign size={28} />} title="No payments yet" description="Submitted promotion payments will appear here for verification" />
-        ) : (
-          <div className="space-y-3">
-            {payments.map(p => (
-              <div key={p.id} className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-200 dark:border-slate-800">
-                <div className="flex items-start gap-3">
-                  <div className="w-11 h-11 bg-primary-100 dark:bg-primary-900/40 text-primary-600 rounded-2xl flex items-center justify-center shrink-0 mt-0.5">
-                    <DollarSign size={20} />
-                  </div>
-                  <div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="font-bold text-slate-900 dark:text-slate-100 text-base">
-                        {formatPrice(p.amount, p.currency)}
-                      </span>
-                      {p.package_name && (
-                        <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
-                          {p.package_name} ({p.duration_days || 7} Days)
-                        </span>
+        {/* Tab Switcher */}
+        <div className="flex border-b border-slate-200 dark:border-slate-800 gap-6">
+          <button
+            onClick={() => setActiveTab('verifications')}
+            className={`pb-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'verifications'
+                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <DollarSign size={16} />
+            <span>Payment Verifications</span>
+            {pendingCount > 0 && (
+              <span className="px-2 py-0.5 text-xs rounded-full bg-amber-500 text-white font-black animate-pulse">
+                {pendingCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('accounts')}
+            className={`pb-3 font-bold text-sm border-b-2 transition-all flex items-center gap-2 cursor-pointer ${
+              activeTab === 'accounts'
+                ? 'border-primary-600 text-primary-600 dark:text-primary-400'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+            }`}
+          >
+            <Building2 size={16} />
+            <span>Bank & Wallet Accounts ({accounts.length})</span>
+          </button>
+        </div>
+
+        {/* TAB 1: Payment Verifications */}
+        {activeTab === 'verifications' && (
+          <div className="space-y-4">
+            {/* Filter Pills */}
+            <div className="flex items-center gap-2">
+              {['all', 'pending', 'completed', 'failed'].map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setStatusFilter(st)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition-all cursor-pointer ${
+                    statusFilter === st
+                      ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+                  }`}
+                >
+                  {st === 'all' ? 'All Payments' : st}
+                </button>
+              ))}
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</div>
+            ) : filteredPayments.length === 0 ? (
+              <EmptyState icon={<DollarSign size={28} />} title="No payments found" description="Submitted promotion payments will appear here for verification" />
+            ) : (
+              <div className="space-y-3">
+                {filteredPayments.map(p => (
+                  <div key={p.id} className="card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-slate-200 dark:border-slate-800">
+                    <div className="flex items-start gap-3">
+                      <div className="w-11 h-11 bg-primary-100 dark:bg-primary-900/40 text-primary-600 rounded-2xl flex items-center justify-center shrink-0 mt-0.5">
+                        <DollarSign size={20} />
+                      </div>
+                      <div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-bold text-slate-900 dark:text-slate-100 text-base">
+                            {formatPrice(p.amount, p.currency)}
+                          </span>
+                          {p.package_name && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                              {p.package_name} ({p.duration_days || 7} Days)
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                          User: <strong>{p.user?.full_name || 'User'}</strong> ({p.user?.email})
+                        </p>
+                        {p.listing && (
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            Listing: <Link to={`/listings/${p.listing.id}`} className="text-primary-600 hover:underline font-medium">{p.listing.title}</Link>
+                          </p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-2">
+                          <span>Method: <strong className="text-slate-700 dark:text-slate-300">{p.method}</strong></span>
+                          {p.transaction_id && <span>TRX ID: <strong className="font-mono text-slate-700 dark:text-slate-300">{p.transaction_id}</strong></span>}
+                          <span>Date: {formatDate(p.created_at)}</span>
+                        </div>
+                        {p.notes && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 bg-slate-50 dark:bg-slate-850 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                            📝 {p.notes}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-3 self-end md:self-center shrink-0">
+                      {p.receipt_url && (
+                        <button
+                          onClick={() => setPreviewReceipt(p.receipt_url || null)}
+                          className="px-3 py-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 border border-primary-300 dark:border-primary-700 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors flex items-center gap-1.5 cursor-pointer"
+                        >
+                          <Eye size={13} />
+                          <span>View Receipt</span>
+                        </button>
+                      )}
+                      <Badge variant={p.status === 'completed' ? 'success' : p.status === 'failed' ? 'error' : 'warning'} className="capitalize">
+                        {p.status}
+                      </Badge>
+                      {p.status === 'pending' && (
+                        <div className="flex gap-2">
+                          <Button size="xs" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold flex items-center gap-1" onClick={() => handleVerify(p.id, 'completed')}>
+                            <Check size={13} />
+                            <span>Approve & Promote</span>
+                          </Button>
+                          <Button size="xs" variant="danger" onClick={() => handleOpenRejectModal(p.id)}>
+                            <span>Reject</span>
+                          </Button>
+                        </div>
                       )}
                     </div>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                      User: <strong>{p.user?.full_name || 'User'}</strong> ({p.user?.email})
-                    </p>
-                    {p.listing && (
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        Listing: <Link to={`/listings/${p.listing.id}`} className="text-primary-600 hover:underline font-medium">{p.listing.title}</Link>
-                      </p>
-                    )}
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-400 mt-2">
-                      <span>Method: <strong className="text-slate-700 dark:text-slate-300">{p.method}</strong></span>
-                      {p.transaction_id && <span>TRX ID: <strong className="font-mono text-slate-700 dark:text-slate-300">{p.transaction_id}</strong></span>}
-                      <span>Date: {formatDate(p.created_at)}</span>
-                    </div>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-3 self-end md:self-center shrink-0">
-                  {p.receipt_url && (
-                    <button
-                      onClick={() => setPreviewReceipt(p.receipt_url || null)}
-                      className="px-3 py-1.5 text-xs font-semibold text-primary-600 dark:text-primary-400 border border-primary-300 dark:border-primary-700 rounded-xl hover:bg-primary-50 dark:hover:bg-primary-900/30 transition-colors"
-                    >
-                      View Receipt
-                    </button>
-                  )}
-                  <Badge variant={p.status === 'completed' ? 'success' : p.status === 'failed' ? 'error' : 'warning'} className="capitalize">
-                    {p.status}
-                  </Badge>
-                  {p.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <Button size="xs" className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold" onClick={() => handleVerify(p.id, 'completed')}>
-                        Approve & Promote
-                      </Button>
-                      <Button size="xs" variant="danger" onClick={() => handleVerify(p.id, 'failed')}>
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                ))}
               </div>
-            ))}
+            )}
+          </div>
+        )}
+
+        {/* TAB 2: Bank & Wallet Accounts Configuration */}
+        {activeTab === 'accounts' && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Configure receiving bank accounts and mobile wallets displayed to users during manual payment promotions.
+              </p>
+              {isSuperAdmin && (
+                <Button onClick={() => handleOpenAccountModal()} size="sm" className="flex items-center gap-1.5">
+                  <Plus size={16} />
+                  <span>Add New Account</span>
+                </Button>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 rounded-2xl" />)}</div>
+            ) : accounts.length === 0 ? (
+              <EmptyState icon={<Building2 size={28} />} title="No bank accounts configured" description="Click Add Account to set up receiving payment methods." />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {accounts.map((acc) => (
+                  <div
+                    key={acc.id}
+                    className={`card p-5 border relative flex flex-col justify-between transition-all ${
+                      acc.is_active
+                        ? 'border-slate-200 dark:border-slate-800'
+                        : 'border-slate-200 dark:border-slate-800 opacity-60 bg-slate-50/50'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <div className={`p-2 rounded-xl text-white ${
+                            acc.account_type === 'bank' ? 'bg-primary-600' : 'bg-emerald-600'
+                          }`}>
+                            {acc.account_type === 'bank' ? <Building2 size={16} /> : <Smartphone size={16} />}
+                          </div>
+                          <div>
+                            <h4 className="font-bold text-slate-900 dark:text-white text-sm">{acc.bank_name}</h4>
+                            <span className="text-[10px] uppercase font-bold text-slate-400">
+                              {acc.account_type}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Badge variant={acc.is_active ? 'success' : 'default'}>
+                          {acc.is_active ? 'Active' : 'Disabled'}
+                        </Badge>
+                      </div>
+
+                      <div className="mt-3 space-y-1 text-xs">
+                        <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                          <span className="text-slate-500">Account Title:</span>
+                          <span className="font-bold text-slate-900 dark:text-white">{acc.account_title}</span>
+                        </div>
+                        <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                          <span className="text-slate-500">Account / Mobile Number:</span>
+                          <span className="font-mono font-bold text-slate-900 dark:text-white">{acc.account_number}</span>
+                        </div>
+                        {acc.iban && (
+                          <div className="flex justify-between py-1 border-b border-slate-100 dark:border-slate-800">
+                            <span className="text-slate-500">IBAN:</span>
+                            <span className="font-mono text-slate-800 dark:text-slate-200 text-[11px] truncate max-w-[200px]">{acc.iban}</span>
+                          </div>
+                        )}
+                        {acc.instructions && (
+                          <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-2 italic">
+                            💡 {acc.instructions}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {isSuperAdmin && (
+                      <div className="flex items-center justify-between pt-4 mt-3 border-t border-slate-100 dark:border-slate-800">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleAccountActive(acc)}
+                          className="text-xs font-semibold text-primary-600 hover:underline cursor-pointer"
+                        >
+                          {acc.is_active ? 'Disable Account' : 'Enable Account'}
+                        </button>
+
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenAccountModal(acc)}
+                            className="p-1.5 text-slate-400 hover:text-primary-600 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                            title="Edit Account"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteAccount(acc.id, acc.bank_name)}
+                            className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                            title="Delete Account"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Receipt Modal */}
+      {/* Account Create / Edit Modal */}
+      <Modal
+        isOpen={accountModalOpen}
+        onClose={() => setAccountModalOpen(false)}
+        title={editingAccount ? "Edit Payment Receiving Account" : "Add Payment Receiving Account"}
+        size="md"
+      >
+        <form onSubmit={handleSaveAccount} className="space-y-4">
+          <div>
+            <label className="label">Account Type *</label>
+            <select
+              value={accType}
+              onChange={(e) => setAccType(e.target.value as PaymentAccount['account_type'])}
+              className="input"
+            >
+              <option value="bank">Commercial Bank (Meezan, HBL, UBL, Alfalah, etc.)</option>
+              <option value="easypaisa">EasyPaisa Mobile Wallet</option>
+              <option value="jazzcash">JazzCash Mobile Wallet</option>
+              <option value="sadapay">SadaPay</option>
+              <option value="nayapay">NayaPay</option>
+              <option value="other">Other Account</option>
+            </select>
+          </div>
+
+          <Input
+            label="Bank or Wallet Service Name *"
+            placeholder="e.g. Meezan Bank, EasyPaisa, HBL"
+            value={accBankName}
+            onChange={(e) => setAccBankName(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Account Title / Beneficiary Name *"
+            placeholder="e.g. All In One Classifieds or Muhammad Ali"
+            value={accTitle}
+            onChange={(e) => setAccTitle(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Account Number / Mobile Number *"
+            placeholder="e.g. 01010102938475 or 03001234567"
+            value={accNumber}
+            onChange={(e) => setAccNumber(e.target.value)}
+            required
+          />
+
+          <Input
+            label="IBAN (Optional for Bank Accounts)"
+            placeholder="e.g. PK45MEZN0001010102938475"
+            value={accIban}
+            onChange={(e) => setAccIban(e.target.value)}
+          />
+
+          <div>
+            <label className="label">Instructions / Notes (Optional)</label>
+            <textarea
+              rows={2}
+              placeholder="e.g. Please transfer exact package fee and provide screenshot with clear TID"
+              value={accInstructions}
+              onChange={(e) => setAccInstructions(e.target.value)}
+              className="input"
+            />
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-300">
+            <input
+              type="checkbox"
+              checked={accIsActive}
+              onChange={(e) => setAccIsActive(e.target.checked)}
+              className="w-4 h-4 rounded text-primary-600 focus:ring-primary-500 cursor-pointer"
+            />
+            <span>Active & Visible to Sellers during Ad Promotion</span>
+          </label>
+
+          <div className="flex gap-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+            <Button type="button" variant="secondary" className="flex-1" onClick={() => setAccountModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" loading={accSubmitting}>
+              {editingAccount ? "Save Changes" : "Create Account"}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Reject Reason Modal */}
+      <Modal
+        isOpen={rejectModalOpen}
+        onClose={() => setRejectModalOpen(false)}
+        title="Reject Payment Submission"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-xs text-slate-600 dark:text-slate-300">
+            Please enter a reason for rejecting this payment proof. The user will be notified of the failure.
+          </p>
+          <div>
+            <label className="label">Rejection Reason</label>
+            <textarea
+              rows={3}
+              placeholder="e.g. Payment screenshot is unreadable, invalid transaction ID, or funds not received"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+              className="input"
+            />
+          </div>
+          <div className="flex gap-3">
+            <Button variant="secondary" className="flex-1" onClick={() => setRejectModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="danger" className="flex-1" onClick={handleConfirmReject}>
+              Reject Payment
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Receipt Preview Modal */}
       {previewReceipt && (
         <Modal isOpen={!!previewReceipt} onClose={() => setPreviewReceipt(null)} title="Payment Receipt Screenshot" size="md">
           <div className="p-2 space-y-4">
-            <img src={previewReceipt} alt="Receipt" className="w-full max-h-[70vh] object-contain rounded-2xl border border-slate-200 dark:border-slate-800" />
+            <img src={previewReceipt} alt="Receipt" className="w-full max-h-[70vh] object-contain rounded-2xl border border-slate-200 dark:border-slate-800 mx-auto" />
             <div className="flex justify-end">
               <Button onClick={() => setPreviewReceipt(null)}>Close</Button>
             </div>

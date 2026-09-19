@@ -180,6 +180,19 @@ export interface Payment {
   listing?: Listing;
 }
 
+export interface PaymentAccount {
+  id: string;
+  account_type: 'bank' | 'easypaisa' | 'jazzcash' | 'sadapay' | 'nayapay' | 'other';
+  bank_name: string;
+  account_title: string;
+  account_number: string;
+  iban?: string;
+  instructions?: string;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface SearchFilters {
   query?: string;
   category_id?: string;

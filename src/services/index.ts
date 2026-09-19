@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-import { Category, Notification, Bookmark, Offer, Report } from '../types';
+import { Category, Notification, Bookmark, Offer, Report, Payment, PaymentAccount } from '../types';
 import { CATEGORIES } from '../utils/constants';
 
 // Re-export verificationService from its dedicated file
@@ -523,8 +523,39 @@ export const usersService = {
 };
 
 // ============================================================
-// PAYMENTS
+// PAYMENTS & PAYMENT ACCOUNTS
 // ============================================================
+export const DEFAULT_PAYMENT_ACCOUNTS: PaymentAccount[] = [
+  {
+    id: 'acc-meezan-01',
+    account_type: 'bank',
+    bank_name: 'Meezan Bank',
+    account_title: 'All In One Classifieds (Pvt) Ltd',
+    account_number: '01010102938475',
+    iban: 'PK45MEZN0001010102938475',
+    instructions: 'Send exact package amount and upload clear transaction slip / screenshot.',
+    is_active: true,
+  },
+  {
+    id: 'acc-easypaisa-01',
+    account_type: 'easypaisa',
+    bank_name: 'EasyPaisa Wallet',
+    account_title: 'Muhammad Abdullah',
+    account_number: '03001234567',
+    instructions: 'Transfer via EasyPaisa app or retail shop. Ensure TRX ID is clearly visible in screenshot.',
+    is_active: true,
+  },
+  {
+    id: 'acc-jazzcash-01',
+    account_type: 'jazzcash',
+    bank_name: 'JazzCash Wallet',
+    account_title: 'Muhammad Abdullah',
+    account_number: '03007654321',
+    instructions: 'Send payment to JazzCash mobile account and attach payment receipt proof.',
+    is_active: true,
+  },
+];
+
 export const paymentsService = {
   async getPayments() {
     const { data, error } = await supabase
@@ -532,7 +563,7 @@ export const paymentsService = {
       .select(`*, user:users!payments_user_id_fkey(id, full_name, email), listing:listings(id, title, is_featured, featured_until)`)
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return (data || []) as Payment[];
   },
 
   async createPayment(payment: Record<string, unknown>) {
@@ -544,6 +575,134 @@ export const paymentsService = {
   async updatePayment(id: string, updates: Record<string, unknown>) {
     const { error } = await supabase.from('payments').update(updates).eq('id', id);
     if (error) throw error;
+  },
+
+  async getPaymentAccounts(): Promise<PaymentAccount[]> {
+    try {
+      const { data, error } = await supabase
+        .from('payment_accounts')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: true });
+      if (error || !data || data.length === 0) {
+        return DEFAULT_PAYMENT_ACCOUNTS;
+      }
+      return data as PaymentAccount[];
+    } catch {
+      return DEFAULT_PAYMENT_ACCOUNTS;
+    }
+  },
+
+  async getAllPaymentAccounts(): Promise<PaymentAccount[]> {
+    try {
+      const { data, error } = await supabase
+        .from('payment_accounts')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error || !data || data.length === 0) {
+        return DEFAULT_PAYMENT_ACCOUNTS;
+      }
+      return data as PaymentAccount[];
+    } catch {
+      return DEFAULT_PAYMENT_ACCOUNTS;
+    }
+  },
+
+  async createPaymentAccount(account: Omit<PaymentAccount, 'id' | 'created_at' | 'updated_at'>): Promise<PaymentAccount> {
+    const { data, error } = await supabase
+      .from('payment_accounts')
+      .insert({
+        account_type: account.account_type,
+        bank_name: account.bank_name,
+        account_title: account.account_title,
+        account_number: account.account_number,
+        iban: account.iban || null,
+        instructions: account.instructions || null,
+        is_active: account.is_active ?? true,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    return data as PaymentAccount;
+  },
+
+  async updatePaymentAccount(id: string, updates: Partial<PaymentAccount>): Promise<void> {
+    const { error } = await supabase
+      .from('payment_accounts')
+      .update({
+        ...updates,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async deletePaymentAccount(id: string): Promise<void> {
+    const { error } = await supabase
+      .from('payment_accounts')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+  },
+
+  async uploadReceiptScreenshot(file: File, userId: string): Promise<string> {
+    try {
+      const fileExt = file.name.split('.').pop() || 'png';
+      const fileName = `receipts/${userId}/${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from('listing-images')
+        .upload(fileName, file, { cacheControl: '3600', upsert: true });
+
+      if (!uploadError) {
+        const { data } = supabase.storage.from('listing-images').getPublicUrl(fileName);
+        if (data?.publicUrl) return data.publicUrl;
+      }
+    } catch (e) {
+      console.warn('Storage upload error, falling back to base64 receipt:', e);
+    }
+
+    // Fallback to base64 Data URL if storage bucket fails
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  },
+
+  async submitManualPayment(params: {
+    listing_id: string;
+    user_id: string;
+    amount: number;
+    package_name: string;
+    duration_days: number;
+    transaction_id: string;
+    receipt_file: File;
+    notes?: string;
+  }) {
+    const receiptUrl = await this.uploadReceiptScreenshot(params.receipt_file, params.user_id);
+
+    const { data, error } = await supabase
+      .from('payments')
+      .insert({
+        listing_id: params.listing_id,
+        user_id: params.user_id,
+        amount: params.amount,
+        currency: 'PKR',
+        method: 'Manual Bank / Wallet Transfer',
+        status: 'pending',
+        transaction_id: params.transaction_id,
+        receipt_url: receiptUrl,
+        package_name: params.package_name,
+        duration_days: params.duration_days,
+        notes: params.notes || 'Direct manual payment submitted for admin verification',
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   },
 
   async approveAndPromote(paymentId: string, adminId: string, status: string = 'completed') {
