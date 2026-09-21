@@ -269,6 +269,6 @@ app.post('/api/safepay/webhook', (req, res) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`🚀 All In One Backend Server running on port ${PORT} [env: ${process.env.NODE_ENV || 'production'}]`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 All In One Backend Server running on port ${PORT} [host: 0.0.0.0] [env: ${process.env.NODE_ENV || 'production'}]`);
 });
