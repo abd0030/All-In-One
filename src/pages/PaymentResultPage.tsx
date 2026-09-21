@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle, Clock, ArrowRight, Home, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button, Spinner } from '../components/ui';
+import { getApiUrl } from '../config/api';
 
 export const PaymentResultPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -20,7 +21,7 @@ export const PaymentResultPage: React.FC = () => {
     const checkPayment = async () => {
       try {
         // Trigger instant backend verification with Safepay
-        await fetch(`/api/safepay/verify-tracker?tracker=${encodeURIComponent(tracker)}`).catch(() => {});
+        await fetch(getApiUrl(`/api/safepay/verify-tracker?tracker=${encodeURIComponent(tracker)}`)).catch(() => {});
 
         const { data } = await supabase
           .from('payments')

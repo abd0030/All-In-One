@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { paymentsService } from '../../services';
 import toast from 'react-hot-toast';
 import { supabase } from '../../lib/supabase';
+import { getApiUrl } from '../../config/api';
 
 interface PromoteListingModalProps {
   isOpen: boolean;
@@ -147,7 +148,7 @@ export const PromoteListingModal: React.FC<PromoteListingModalProps> = ({
 
     setLoading(true);
     try {
-      const res = await fetch('/api/safepay/create-tracker', {
+      const res = await fetch(getApiUrl('/api/safepay/create-tracker'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

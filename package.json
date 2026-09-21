@@ -8,14 +8,19 @@
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "node server/index.js",
+    "server": "node server/index.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.101.2",
     "@tanstack/react-query-devtools": "^5.101.2",
+    "cors": "^2.8.6",
     "date-fns": "^4.4.0",
+    "dotenv": "^18.0.1",
+    "express": "^5.2.1",
     "framer-motion": "^12.42.0",
     "lucide-react": "^1.21.0",
     "react": "^19.2.7",

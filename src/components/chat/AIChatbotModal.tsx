@@ -22,9 +22,7 @@ const SUGGESTED_QUESTIONS = [
   "What categories are available?"
 ];
 
-// Fallback to production Vercel serverless API when running on localhost dev mode
-const API_BASE_URL = import.meta.env.VITE_AI_BACKEND_URL || 
-  (import.meta.env.DEV ? 'https://all-in-one-classified.vercel.app' : '');
+import { getApiUrl } from '../../config/api';
 
 const LOCAL_GROQ_KEY = import.meta.env.VITE_GROQ_API_KEY || '';
 
@@ -76,9 +74,9 @@ export const AIChatbotModal: React.FC<AIChatbotModalProps> = ({ isOpen, onClose 
 
       let aiAnswer = '';
 
-      // 1. Call API Endpoint (/api/chat) or Live Vercel API if on localhost
+      // 1. Call API Endpoint (/api/chat)
       try {
-        const endpoint = API_BASE_URL ? `${API_BASE_URL.replace(/\/$/, '')}/api/chat` : '/api/chat';
+        const endpoint = getApiUrl('/api/chat');
         const res = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
