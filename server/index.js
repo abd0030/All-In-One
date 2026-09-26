@@ -2,8 +2,14 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { createClient } from '@supabase/supabase-js';
+import ws from 'ws';
 
 dotenv.config();
+
+// Ensure WebSocket is globally available for any submodules
+if (typeof globalThis.WebSocket === 'undefined') {
+  globalThis.WebSocket = ws;
+}
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -26,7 +32,15 @@ const SAFEPAY_MERCHANT_KEY = process.env.SAFEPAY_MERCHANT_KEY || '';
 const SAFEPAY_ENV = process.env.SAFEPAY_ENV || 'sandbox';
 
 const supabase = (SUPABASE_URL && SUPABASE_SERVICE_ROLE_KEY)
-  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
+  ? createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+      realtime: {
+        transport: ws,
+      },
+    })
   : null;
 
 // ============================================================
