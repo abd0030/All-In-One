@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { motion } from 'framer-motion';
-import { Eye, EyeOff, Package, Mail, Lock, User, Phone, CheckCircle } from 'lucide-react';
+import { Eye, EyeOff, Package, Mail, Lock, User, Phone, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input, Button } from '../../components/ui';
 import { userHasAnyRole } from '../../utils/helpers';
@@ -250,8 +250,17 @@ export const LoginPage: React.FC = () => {
 // ============================================================
 const registerSchema = z.object({
   full_name: z.string().min(3, 'Name must be at least 3 characters'),
-  email: z.string().email('Invalid email address'),
-  phone: z.string().optional(),
+  email: z.string()
+    .email('Invalid email address')
+    .refine(val => val.toLowerCase().trim().endsWith('@gmail.com'), {
+      message: 'Please use a valid @gmail.com email address',
+    }),
+  phone: z.string()
+    .refine(val => !val || /^[\d+]+$/.test(val.trim()), {
+      message: 'Phone number can only contain numeric digits (0-9)',
+    })
+    .optional()
+    .or(z.literal('')),
   role: z.enum(['buyer', 'seller']),
   password: z.string().min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Must contain uppercase letter')
@@ -271,10 +280,40 @@ export const RegisterPage: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const redirectParam = searchParams.get('redirect');
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RegisterData>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { role: 'buyer' },
+    defaultValues: { role: 'buyer', phone: '' },
   });
+
+  const emailValue = watch('email') || '';
+  const isGmail = emailValue.toLowerCase().trim().endsWith('@gmail.com');
+  const showGmailWarning = emailValue.length > 0 && !isGmail;
+
+  const handlePhoneKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow control and navigation keys
+    const allowedKeys = ['Backspace', 'Tab', 'Enter', 'Delete', 'Escape', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'];
+    if (allowedKeys.includes(e.key)) return;
+    // Allow standard copy/paste/select-all combos
+    if (e.ctrlKey || e.metaKey) return;
+    // Disallow alphabetic characters strictly
+    if (/[a-zA-Z]/.test(e.key)) {
+      e.preventDefault();
+      return;
+    }
+    // Only allow numeric digits and optional '+' at start
+    if (!/[\d+]/.test(e.key) || (e.key === '+' && (e.currentTarget.selectionStart !== 0 || e.currentTarget.value.includes('+')))) {
+      e.preventDefault();
+    }
+  };
+
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Strip any letters or non-numeric characters
+    let val = e.target.value.replace(/[^0-9+]/g, '');
+    if (val.indexOf('+') > 0) {
+      val = val.charAt(0) === '+' ? '+' + val.replace(/\+/g, '') : val.replace(/\+/g, '');
+    }
+    setValue('phone', val, { shouldValidate: true, shouldDirty: true });
+  };
 
   const onSubmit = async (data: RegisterData) => {
     try {
@@ -327,21 +366,44 @@ export const RegisterPage: React.FC = () => {
               error={errors.full_name?.message}
               {...register('full_name')}
             />
-            <Input
-              label="Email"
-              type="email"
-              placeholder="you@example.com"
-              leftIcon={<Mail size={16} />}
-              error={errors.email?.message}
-              {...register('email')}
-            />
-            <Input
-              label="Phone (Optional)"
-              type="tel"
-              placeholder="+92 300 1234567"
-              leftIcon={<Phone size={16} />}
-              {...register('phone')}
-            />
+
+            <div>
+              <Input
+                label="Email"
+                type="email"
+                placeholder="you@gmail.com"
+                leftIcon={<Mail size={16} />}
+                error={errors.email?.message}
+                {...register('email')}
+              />
+              {showGmailWarning && !errors.email && (
+                <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl px-2.5 py-1.5 shadow-sm">
+                  <AlertTriangle size={14} className="shrink-0 text-amber-500" />
+                  <span>Warning: Please use an official @gmail.com email address</span>
+                </div>
+              )}
+              {emailValue && isGmail && (
+                <div className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-semibold mt-1.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 rounded-xl px-2.5 py-1 shadow-sm">
+                  <CheckCircle size={13} className="shrink-0 text-emerald-500" />
+                  <span>Valid @gmail.com address</span>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Input
+                label="Phone (Optional)"
+                type="tel"
+                inputMode="numeric"
+                placeholder="+92 300 1234567"
+                leftIcon={<Phone size={16} />}
+                error={errors.phone?.message}
+                hint="Numeric numbers only (no alphabets allowed)"
+                {...register('phone')}
+                onKeyDown={handlePhoneKeyDown}
+                onChange={handlePhoneChange}
+              />
+            </div>
 
             <Input
               label="Password"

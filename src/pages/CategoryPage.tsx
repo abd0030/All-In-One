@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowRight, SlidersHorizontal, MapPin, DollarSign, Tag, RefreshCw } from 'lucide-react';
 import { listingsService } from '../services/listingsService';
@@ -25,6 +25,10 @@ const CategoryPage: React.FC = () => {
   const [selectedSubSubcategoryId, setSelectedSubSubcategoryId] = useState<string | null>(null);
   const [selectedPartTypeId, setSelectedPartTypeId] = useState<string | null>(null);
 
+  const [searchParams] = useSearchParams();
+  const subParam = searchParams.get('sub');
+  const subSubParam = searchParams.get('subSub');
+
   useEffect(() => {
     if (!slug) return;
     setCategoriesLoading(true);
@@ -44,6 +48,20 @@ const CategoryPage: React.FC = () => {
             ...found,
             subcategories
           });
+
+          if (subParam) {
+            const matchedSub = subcategories.find(s => s.id === subParam || s.slug === subParam);
+            if (matchedSub) {
+              setSelectedSubcategoryId(matchedSub.id);
+              if (subSubParam) {
+                const subSubs = typedCats.filter(c => c.parent_id === matchedSub.id);
+                const matchedSubSub = subSubs.find(ss => ss.id === subSubParam || ss.slug === subSubParam);
+                if (matchedSubSub) {
+                  setSelectedSubSubcategoryId(matchedSubSub.id);
+                }
+              }
+            }
+          }
         } else {
           setCategory(null);
         }
@@ -51,6 +69,21 @@ const CategoryPage: React.FC = () => {
       .catch(console.error)
       .finally(() => setCategoriesLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (subParam && allCategories.length > 0) {
+      const matchedSub = allCategories.find(s => s.id === subParam || s.slug === subParam);
+      if (matchedSub) {
+        setSelectedSubcategoryId(matchedSub.id);
+        if (subSubParam) {
+          const matchedSubSub = allCategories.find(ss => (ss.id === subSubParam || ss.slug === subSubParam) && ss.parent_id === matchedSub.id);
+          if (matchedSubSub) {
+            setSelectedSubSubcategoryId(matchedSubSub.id);
+          }
+        }
+      }
+    }
+  }, [subParam, subSubParam, allCategories]);
 
   const subSubcategories = React.useMemo(() => {
     if (!selectedSubcategoryId || allCategories.length === 0) return [];

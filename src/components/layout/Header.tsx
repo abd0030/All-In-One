@@ -19,7 +19,9 @@ import {
   Shield,
   HelpCircle,
   SlidersHorizontal,
-  ArrowRight
+  ArrowRight,
+  ChevronRight,
+  LogIn
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -45,6 +47,11 @@ const Header: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [categoryMenuOpen, setCategoryMenuOpen] = useState(false);
+  const [hoveredCatId, setHoveredCatId] = useState<string | null>(null);
+  const [hoveredSubCatId, setHoveredSubCatId] = useState<string | null>(null);
+
+  const activeCategory = CATEGORIES.find(c => c.id === hoveredCatId) || (CATEGORIES.length > 0 ? CATEGORIES[0] : null);
+  const activeSubCategory = activeCategory?.subcategories?.find(s => s.id === hoveredSubCatId) || (activeCategory?.subcategories && activeCategory.subcategories.length > 0 ? activeCategory.subcategories[0] : null);
 
   useEffect(() => {
     if (user) {
@@ -87,6 +94,8 @@ const Header: React.FC = () => {
     setMobileMenuOpen(false);
     setProfileMenuOpen(false);
     setCategoryMenuOpen(false);
+    setHoveredCatId(null);
+    setHoveredSubCatId(null);
   }, [location.pathname]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -157,7 +166,13 @@ const Header: React.FC = () => {
 
               {/* Categories Dropdown Trigger (Desktop) */}
               {!isManagementRole && (
-                <div className="relative hidden lg:block ml-2">
+                <div
+                  className="relative hidden lg:block ml-2"
+                  onMouseEnter={() => setCategoryMenuOpen(true)}
+                  onMouseLeave={() => {
+                    setCategoryMenuOpen(false);
+                  }}
+                >
                   <button
                     onClick={() => setCategoryMenuOpen(!categoryMenuOpen)}
                     className={cn(
@@ -182,41 +197,179 @@ const Header: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 10, scale: 0.98 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full left-0 mt-2 w-80 bg-white/95 dark:bg-slate-900/95 backdrop-blur-2xl border border-slate-200 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-50 p-2"
-                        onMouseLeave={() => setCategoryMenuOpen(false)}
+                        className="absolute top-full left-0 mt-2 bg-white/98 dark:bg-slate-900/98 backdrop-blur-2xl border border-slate-200/90 dark:border-slate-800 rounded-3xl shadow-2xl overflow-hidden z-50 flex flex-row divide-x divide-slate-100 dark:divide-slate-800"
+                        style={{ maxHeight: '480px' }}
                       >
-                        <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">All Categories</span>
-                          <Link
-                            to="/listings"
-                            onClick={() => setCategoryMenuOpen(false)}
-                            className="text-xs text-primary-600 dark:text-primary-400 font-semibold hover:underline flex items-center gap-1"
-                          >
-                            View All <ArrowRight size={11} />
-                          </Link>
-                        </div>
-                        <div className="p-1.5 grid grid-cols-1 gap-1 max-h-96 overflow-y-auto scrollbar-none">
-                          {CATEGORIES.map(cat => (
+                        {/* PANEL 1: MAIN CATEGORIES */}
+                        <div className="w-64 sm:w-72 flex flex-col shrink-0">
+                          <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50/50 dark:bg-slate-950/40">
+                            <span className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">All Categories</span>
                             <Link
-                              key={cat.id}
-                              to={`/category/${cat.slug}`}
+                              to="/listings"
                               onClick={() => setCategoryMenuOpen(false)}
-                              className="flex items-center gap-3 px-3 py-2.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors group"
+                              className="text-xs text-primary-600 dark:text-primary-400 font-bold hover:underline flex items-center gap-1"
                             >
-                              <div
-                                className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform"
-                                style={{ backgroundColor: cat.color + '20' }}
-                              >
-                                <Icon name={cat.icon} size={16} style={{ color: cat.color }} />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 dark:text-slate-200 group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate">
-                                  {cat.name}
-                                </p>
-                              </div>
+                              View All <ArrowRight size={11} />
                             </Link>
-                          ))}
+                          </div>
+                          <div className="p-1.5 overflow-y-auto max-h-[420px] space-y-0.5">
+                            {CATEGORIES.map(cat => {
+                              const isSelected = (hoveredCatId || activeCategory?.id) === cat.id;
+                              const hasSub = Boolean(cat.subcategories && cat.subcategories.length > 0);
+                              return (
+                                <div
+                                  key={cat.id}
+                                  onMouseEnter={() => {
+                                    setHoveredCatId(cat.id);
+                                    setHoveredSubCatId(cat.subcategories?.[0]?.id || null);
+                                  }}
+                                  className={cn(
+                                    "flex items-center justify-between px-3 py-2 rounded-2xl transition-all cursor-pointer group",
+                                    isSelected
+                                      ? "bg-primary-50/90 dark:bg-slate-800 text-primary-600 dark:text-primary-400 font-bold shadow-sm"
+                                      : "hover:bg-slate-50 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300"
+                                  )}
+                                >
+                                  <Link
+                                    to={`/category/${cat.slug}`}
+                                    onClick={() => setCategoryMenuOpen(false)}
+                                    className="flex items-center gap-2.5 flex-1 min-w-0"
+                                  >
+                                    <div
+                                      className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                                      style={{ backgroundColor: cat.color + '20' }}
+                                    >
+                                      <Icon name={cat.icon} size={15} style={{ color: cat.color }} />
+                                    </div>
+                                    <span className="text-xs font-semibold truncate group-hover:text-primary-600 dark:group-hover:text-primary-400">
+                                      {cat.name}
+                                    </span>
+                                  </Link>
+                                  {hasSub && (
+                                    <ChevronRight
+                                      size={14}
+                                      className={cn(
+                                        "text-slate-400 shrink-0 transition-transform",
+                                        isSelected && "text-primary-500 translate-x-0.5"
+                                      )}
+                                    />
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
                         </div>
+
+                        {/* PANEL 2: SUBCATEGORIES (AUTO EXPANDS ON HOVER) */}
+                        {activeCategory && activeCategory.subcategories && activeCategory.subcategories.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="w-64 sm:w-72 flex flex-col shrink-0 bg-slate-50/40 dark:bg-slate-950/30"
+                          >
+                            <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-100/40 dark:bg-slate-900/40">
+                              <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate max-w-[160px]">
+                                {activeCategory.name}
+                              </span>
+                              <Link
+                                to={`/category/${activeCategory.slug}`}
+                                onClick={() => setCategoryMenuOpen(false)}
+                                className="text-xs text-primary-600 dark:text-primary-400 font-bold hover:underline flex items-center gap-1 shrink-0"
+                              >
+                                View All <ArrowRight size={11} />
+                              </Link>
+                            </div>
+                            <div className="p-1.5 overflow-y-auto max-h-[420px] space-y-0.5">
+                              {activeCategory.subcategories.map(sub => {
+                                const isSubSelected = (hoveredSubCatId || activeSubCategory?.id) === sub.id;
+                                const hasSubSub = Boolean(sub.subcategories && sub.subcategories.length > 0);
+                                return (
+                                  <div
+                                    key={sub.id}
+                                    onMouseEnter={() => setHoveredSubCatId(sub.id)}
+                                    className={cn(
+                                      "flex items-center justify-between px-3 py-2 rounded-2xl transition-all cursor-pointer group",
+                                      isSubSelected
+                                        ? "bg-white dark:bg-slate-800 text-primary-600 dark:text-primary-400 font-bold shadow-sm"
+                                        : "hover:bg-white/70 dark:hover:bg-slate-850 text-slate-700 dark:text-slate-300"
+                                    )}
+                                  >
+                                    <Link
+                                      to={`/category/${activeCategory.slug}?sub=${sub.id}`}
+                                      onClick={() => setCategoryMenuOpen(false)}
+                                      className="flex items-center gap-2.5 flex-1 min-w-0"
+                                    >
+                                      <div
+                                        className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                                        style={{ backgroundColor: (sub.color || activeCategory.color) + '18' }}
+                                      >
+                                        <Icon name={sub.icon || activeCategory.icon} size={13} style={{ color: sub.color || activeCategory.color }} />
+                                      </div>
+                                      <span className="text-xs font-medium truncate group-hover:text-primary-600 dark:group-hover:text-primary-400">
+                                        {sub.name}
+                                      </span>
+                                    </Link>
+                                    {hasSubSub && (
+                                      <ChevronRight
+                                        size={14}
+                                        className={cn(
+                                          "text-slate-400 shrink-0 transition-transform",
+                                          isSubSelected && "text-primary-500 translate-x-0.5"
+                                        )}
+                                      />
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
+
+                        {/* PANEL 3: SUB-SUBCATEGORIES (AUTO EXPANDS ON HOVER) */}
+                        {activeSubCategory && activeSubCategory.subcategories && activeSubCategory.subcategories.length > 0 && (
+                          <motion.div
+                            initial={{ opacity: 0, x: -8 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="w-64 sm:w-72 flex flex-col shrink-0 bg-white dark:bg-slate-900"
+                          >
+                            <div className="px-3.5 py-2.5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between shrink-0 bg-slate-50/70 dark:bg-slate-950/50">
+                              <span className="text-[11px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-wider truncate max-w-[160px]">
+                                {activeSubCategory.name}
+                              </span>
+                              <Link
+                                to={`/category/${activeCategory?.slug}?sub=${activeSubCategory.id}`}
+                                onClick={() => setCategoryMenuOpen(false)}
+                                className="text-xs text-primary-600 dark:text-primary-400 font-bold hover:underline flex items-center gap-1 shrink-0"
+                              >
+                                View All <ArrowRight size={11} />
+                              </Link>
+                            </div>
+                            <div className="p-1.5 overflow-y-auto max-h-[420px] space-y-0.5">
+                              {activeSubCategory.subcategories.map(subSub => {
+                                return (
+                                  <Link
+                                    key={subSub.id}
+                                    to={`/category/${activeCategory?.slug}?sub=${activeSubCategory.id}&subSub=${subSub.id}`}
+                                    onClick={() => setCategoryMenuOpen(false)}
+                                    className="flex items-center gap-2.5 px-3 py-2 rounded-2xl hover:bg-primary-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 hover:text-primary-600 dark:hover:text-primary-400 transition-colors group"
+                                  >
+                                    <div
+                                      className="w-5 h-5 rounded-md flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform"
+                                      style={{ backgroundColor: (subSub.color || activeCategory?.color) + '15' }}
+                                    >
+                                      <Icon name={subSub.icon || activeCategory?.icon || 'Tag'} size={12} style={{ color: subSub.color || activeCategory?.color }} />
+                                    </div>
+                                    <span className="text-xs font-medium truncate">
+                                      {subSub.name}
+                                    </span>
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          </motion.div>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -423,17 +576,18 @@ const Header: React.FC = () => {
                       )}
                     </AnimatePresence>
                   </div>
-
-                  {/* Mobile Menu Toggle */}
-                  <button
-                    onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                    className="lg:hidden w-9 h-9 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all shrink-0"
-                  >
-                    {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-                  </button>
                 </>
               ) : (
-                <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2.5">
+                  {/* Login Button in Navbar */}
+                  <Link
+                    to="/login"
+                    className="px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-full text-xs sm:text-sm font-bold text-slate-700 dark:text-slate-200 hover:text-primary-600 dark:hover:text-primary-400 bg-slate-100/90 dark:bg-slate-900/90 hover:bg-slate-200/80 dark:hover:bg-slate-800 border border-slate-200/80 dark:border-slate-800 transition-all duration-200 flex items-center gap-1.5 shadow-sm active:scale-95 shrink-0"
+                  >
+                    <LogIn size={15} className="text-primary-500" />
+                    <span>Login</span>
+                  </Link>
+
                   {/* Ultra-Luxurious Sell Button (Direct Link to Login with return to new ad) */}
                   <Link
                     to="/login?redirect=/dashboard/listings/new"
@@ -446,6 +600,14 @@ const Header: React.FC = () => {
                   </Link>
                 </div>
               )}
+
+              {/* Mobile Menu Toggle (Always accessible on mobile) */}
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="lg:hidden w-9 h-9 rounded-2xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 flex items-center justify-center transition-all shrink-0"
+              >
+                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
+              </button>
             </div>
           </div>
 
@@ -522,6 +684,25 @@ const Header: React.FC = () => {
                     <Shield size={15} className="text-emerald-500" />
                     <span>Safety Tips</span>
                   </Link>
+
+                  {!user && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex gap-2">
+                      <Link
+                        to="/login"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex-1 py-2.5 text-center text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-850 hover:bg-slate-200 rounded-xl"
+                      >
+                        Login
+                      </Link>
+                      <Link
+                        to="/register"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex-1 py-2.5 text-center text-xs font-bold text-white bg-primary-600 hover:bg-primary-700 rounded-xl"
+                      >
+                        Register
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>
